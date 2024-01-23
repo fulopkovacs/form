@@ -59,3 +59,5 @@ jobs:
         run: curl https://github.com/neilpa/yajsv/releases/download/v1.4.1/yajsv.linux.amd64 -o yajsv && chmod u+x yajsv
       - name: Validate docs/config.json using the schema
         run:  ./yajsv -s tanstack-docs-config-schema.json docs/config.json
+      - name: err
+        run: exit 1
