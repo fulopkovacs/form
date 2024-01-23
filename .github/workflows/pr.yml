@@ -57,5 +57,5 @@ jobs:
         run: curl https://raw.githubusercontent.com/TanStack/tanstack.com/main/tanstack-docs-config.schema.json -o tanstack-docs-config-schema.json
       - name: Get the yajsv binary
         run: curl https://github.com/neilpa/yajsv/releases/download/v1.4.1/yajsv.linux.amd64 -o yajsv && chmod u+x yajsv
-      - name: Validate the schema
+      - name: Validate docs/config.json using the schema
         run:  ./yajsv -s tanstack-docs-config-schema.json docs/config.json
