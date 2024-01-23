@@ -1,6 +1,5 @@
 {
   "docSearch": {
-    "appId": "",
     "apiKey": "",
     "indexName": "tanstack-form"
   },
@@ -84,7 +83,6 @@
             {
               "label": "SSR/Next.js",
               "to": "framework/react/guides/ssr"
-
             }
           ]
         },
