@@ -19,13 +19,41 @@ import type {
   Validator,
 } from './types'
 
+type FieldErrorFromFormValidator<TFormData> = {
+  formValidatorError: Partial<
+    Record<ValidationCause, Partial<DeepKeys<TFormData>>>
+  >
+}
+
+/**
+  TODO: this is what we need to save internally
+  To the `errorMap` of the form
+*/
+type InternalFormValidationError<TFormData> =
+  | ValidationError
+  | FieldErrorFromFormValidator<TFormData>
+
+/**
+  NOTE: we can set field errors from here
+*/
+type FormValidationErrorMap<TFormData> = {
+  [K in ValidationErrorMapKeys]?: InternalFormValidationError<TFormData>
+}
+
+type FormValidationError<TFormData> =
+  | ValidationError
+  | {
+      form?: ValidationError
+      fields: Partial<Record<DeepKeys<TFormData>, ValidationError>>
+    }
+
 export type FormValidateFn<
   TFormData,
   TFormValidator extends Validator<TFormData, unknown> | undefined = undefined,
 > = (props: {
   value: TFormData
   formApi: FormApi<TFormData, TFormValidator>
-}) => ValidationError
+}) => FormValidationError<TFormData>
 
 export type FormValidateOrFn<
   TFormData,
@@ -41,7 +69,15 @@ export type FormValidateAsyncFn<
   value: TFormData
   formApi: FormApi<TFormData, TFormValidator>
   signal: AbortSignal
-}) => ValidationError | Promise<ValidationError>
+}) => FormValidationError<TFormData> | Promise<FormValidationError<TFormData>>
+
+export type FormValidator<TFormData, Type, Fn = unknown> = {
+  validate(options: { value: Type }, fn: Fn): ValidationError
+  validateAsync(
+    options: { value: Type },
+    fn: Fn,
+  ): Promise<FormValidationError<TFormData>>
+}
 
 export type FormAsyncValidateOrFn<
   TFormData,
@@ -118,8 +154,8 @@ export type FormState<TFormData> = {
   // Form Validation
   isFormValidating: boolean
   isFormValid: boolean
-  errors: ValidationError[]
-  errorMap: ValidationErrorMap
+  errors: InternalFormValidationError<TFormData>[]
+  errorMap: FormValidationErrorMap<TFormData>
   validationMetaMap: Record<ValidationErrorMapKeys, ValidationMeta | undefined>
   // Fields
   fieldMeta: Record<DeepKeys<TFormData>, FieldMeta>
@@ -379,27 +415,45 @@ export class FormApi<
       for (const validateObj of validates) {
         if (!validateObj.validate) continue
 
-        const error = normalizeError(
-          this.runValidator({
-            validate: validateObj.validate,
-            value: {
-              value: this.state.values,
-              formApi: this,
-            },
-            type: 'validate',
-          }),
-        )
+        const rawError = this.runValidator({
+          validate: validateObj.validate,
+          value: {
+            value: this.state.values,
+            formApi: this,
+          },
+          type: 'validate',
+        })
+
+        const { formError, fieldErrors } = normalizeError(rawError)
         const errorMapKey = getErrorMapKey(validateObj.cause)
-        if (this.state.errorMap[errorMapKey] !== error) {
+
+        // TODO: Set field errors if they exist
+        if (fieldErrors) {
+          for (const [field, fieldError] of Object.entries(fieldErrors)) {
+            // TODO: Update the field's errors
+            const fieldMeta = this.getFieldMeta(field as DeepKeys<TFormData>)
+            if (fieldMeta && fieldMeta.errorMap[errorMapKey] !== fieldError) {
+              this.setFieldMeta(field as DeepKeys<TFormData>, (prev) => ({
+                ...prev,
+                errorMap: {
+                  ...prev.errorMap,
+                  [getErrorMapKey(validateObj.cause)]: fieldError,
+                },
+              }))
+            }
+          }
+        }
+
+        if (this.state.errorMap[errorMapKey] !== formError) {
           this.store.setState((prev) => ({
             ...prev,
             errorMap: {
               ...prev.errorMap,
-              [errorMapKey]: error,
+              [errorMapKey]: formError,
             },
           }))
         }
-        if (error) {
+        if (formError) {
           hasErrored = true
         }
       }
@@ -510,7 +564,9 @@ export class FormApi<
 
   validate = (
     cause: ValidationCause,
-  ): ValidationError[] | Promise<ValidationError[]> => {
+  ): // TODO: Not sure if this is right
+  | InternalFormValidationError<TFormData>[]
+    | Promise<InternalFormValidationError<TFormData>[]> => {
     // Attempt to sync validate first
     const { hasErrored } = this.validateSync(cause)
 
@@ -755,16 +811,25 @@ export class FormApi<
   }
 }
 
-function normalizeError(rawError?: ValidationError) {
+function normalizeError<TFormData>(rawError?: FormValidationError<TFormData>): {
+  formError: ValidationError
+  fieldErrors?: Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
+} {
   if (rawError) {
-    if (typeof rawError !== 'string') {
-      return 'Invalid Form Values'
+    if (typeof rawError === 'object' && rawError.form) {
+      const formError = normalizeError(rawError.form).formError
+      const fieldErrors = rawError.fields
+      return { formError, fieldErrors }
     }
 
-    return rawError
+    if (typeof rawError !== 'string') {
+      return { formError: 'Invalid Form Values' }
+    }
+
+    return { formError: rawError }
   }
 
-  return undefined
+  return { formError: undefined }
 }
 
 function getErrorMapKey(cause: ValidationCause) {
