@@ -418,7 +418,6 @@ export class FormApi<
 
         if (fieldErrors) {
           for (const [field, fieldError] of Object.entries(fieldErrors)) {
-            // TODO: Update the field's errors
             const fieldMeta = this.getFieldMeta(field as DeepKeys<TFormData>)
             if (fieldMeta && fieldMeta.errorMap[errorMapKey] !== fieldError) {
               this.setFieldMeta(field as DeepKeys<TFormData>, (prev) => ({
@@ -528,7 +527,6 @@ export class FormApi<
 
           if (fieldErrors) {
             for (const [field, fieldError] of Object.entries(fieldErrors)) {
-              // TODO: Update the field's errors
               const fieldMeta = this.getFieldMeta(field as DeepKeys<TFormData>)
               if (fieldMeta && fieldMeta.errorMap[errorMapKey] !== fieldError) {
                 this.setFieldMeta(field as DeepKeys<TFormData>, (prev) => ({
@@ -569,7 +567,7 @@ export class FormApi<
 
   validate = (
     cause: ValidationCause,
-  ): // TODO: Not sure if this is right
+  ):
   | InternalFormValidationError<TFormData>[]
     | Promise<InternalFormValidationError<TFormData>[]> => {
     // Attempt to sync validate first

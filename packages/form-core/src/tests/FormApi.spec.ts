@@ -1057,7 +1057,6 @@ describe('form api', () => {
     expect(form.state.errors).toStrictEqual(['first name is required'])
   })
 
-  // TODO: Do not run only this test
   it("should set errors for the fields from the form's onSubmit validator", async () => {
     const form = new FormApi({
       defaultValues: {
