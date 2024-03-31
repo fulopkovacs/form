@@ -14,7 +14,6 @@ import type { FieldApi, FieldMeta } from './FieldApi'
 import type {
   ValidationCause,
   ValidationError,
-  ValidationErrorMap,
   ValidationErrorMapKeys,
   Validator,
 } from './types'
@@ -427,7 +426,6 @@ export class FormApi<
         const { formError, fieldErrors } = normalizeError(rawError)
         const errorMapKey = getErrorMapKey(validateObj.cause)
 
-        // TODO: Set field errors if they exist
         if (fieldErrors) {
           for (const [field, fieldError] of Object.entries(fieldErrors)) {
             // TODO: Update the field's errors
@@ -535,16 +533,33 @@ export class FormApi<
           } catch (e: unknown) {
             rawError = e as ValidationError
           }
-          const error = normalizeError(rawError)
+          const { formError, fieldErrors } = normalizeError(rawError)
+          const errorMapKey = getErrorMapKey(validateObj.cause)
+
+          if (fieldErrors) {
+            for (const [field, fieldError] of Object.entries(fieldErrors)) {
+              // TODO: Update the field's errors
+              const fieldMeta = this.getFieldMeta(field as DeepKeys<TFormData>)
+              if (fieldMeta && fieldMeta.errorMap[errorMapKey] !== fieldError) {
+                this.setFieldMeta(field as DeepKeys<TFormData>, (prev) => ({
+                  ...prev,
+                  errorMap: {
+                    ...prev.errorMap,
+                    [errorMapKey]: fieldError,
+                  },
+                }))
+              }
+            }
+          }
           this.store.setState((prev) => ({
             ...prev,
             errorMap: {
               ...prev.errorMap,
-              [getErrorMapKey(cause)]: error,
+              [getErrorMapKey(cause)]: formError,
             },
           }))
 
-          resolve(error)
+          resolve(formError)
         }),
       )
     }

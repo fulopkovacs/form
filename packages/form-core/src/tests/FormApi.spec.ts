@@ -1057,6 +1057,7 @@ describe('form api', () => {
     expect(form.state.errors).toStrictEqual(['first name is required'])
   })
 
+  // TODO: Do not run only this test
   it("should set errors for the fields from the form's onSubmit validator", async () => {
     const form = new FormApi({
       defaultValues: {
@@ -1102,7 +1103,10 @@ describe('form api', () => {
     expect(form.state.fieldMeta['lastName'].errors).toEqual([
       'last name is required',
     ])
-    expect(form.state.errorMap['onSubmit']).toEqual('Something went wrong')
+    expect(form.state.errorMap).toMatchObject({
+      onSubmit: 'Something went wrong',
+    })
+    expect(form.state.errors).toEqual(['Something went wrong'])
   })
 
   it("should remove the onSubmit errors set from the form's validators after the field has been touched", async () => {
@@ -1153,5 +1157,46 @@ describe('form api', () => {
     firstNameField.setValue('this is a first name', { touch: true })
 
     expect(firstNameField.state.meta.errorMap['onSubmit']).toBe(undefined)
+  })
+
+  it("should set errors for the fields from the form's onSubmitAsync validator", async () => {
+    vi.useFakeTimers()
+
+    const form = new FormApi({
+      defaultValues: {
+        name: 'test',
+      },
+      validators: {
+        onSubmitAsync: async ({ value }) => {
+          await sleep(1000)
+          if (value.name === 'other')
+            return {
+              form: 'Something went wrong',
+              fields: {
+                name: 'Please enter a different value',
+              },
+            }
+          return
+        },
+      },
+    })
+    const field = new FieldApi({
+      form,
+      name: 'name',
+    })
+    form.mount()
+
+    field.mount()
+
+    expect(form.state.errors.length).toBe(0)
+    field.setValue('other', { touch: true })
+    form.handleSubmit()
+    await vi.runAllTimersAsync()
+    expect(form.state.errorMap).toMatchObject({
+      onSubmit: 'Something went wrong',
+    })
+    expect(field.state.meta.errorMap).toMatchObject({
+      onSubmit: 'Please enter a different value',
+    })
   })
 })
