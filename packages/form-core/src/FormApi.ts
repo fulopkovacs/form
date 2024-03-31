@@ -14,6 +14,7 @@ import type { FieldApi, FieldMeta } from './FieldApi'
 import type {
   ValidationCause,
   ValidationError,
+  ValidationErrorMap,
   ValidationErrorMapKeys,
   Validator,
 } from './types'
@@ -24,20 +25,9 @@ type FieldErrorFromFormValidator<TFormData> = {
   >
 }
 
-/**
-  TODO: this is what we need to save internally
-  To the `errorMap` of the form
-*/
 type InternalFormValidationError<TFormData> =
   | ValidationError
   | FieldErrorFromFormValidator<TFormData>
-
-/**
-  NOTE: we can set field errors from here
-*/
-type FormValidationErrorMap<TFormData> = {
-  [K in ValidationErrorMapKeys]?: InternalFormValidationError<TFormData>
-}
 
 type FormValidationError<TFormData> =
   | ValidationError
@@ -153,8 +143,8 @@ export type FormState<TFormData> = {
   // Form Validation
   isFormValidating: boolean
   isFormValid: boolean
-  errors: InternalFormValidationError<TFormData>[]
-  errorMap: FormValidationErrorMap<TFormData>
+  errors: ValidationError[]
+  errorMap: ValidationErrorMap
   validationMetaMap: Record<ValidationErrorMapKeys, ValidationMeta | undefined>
   // Fields
   fieldMeta: Record<DeepKeys<TFormData>, FieldMeta>

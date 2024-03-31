@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { queryByTestId, render, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createFormFactory, useForm } from '../index'
 import { sleep } from './utils'
@@ -362,6 +362,67 @@ describe('useForm', () => {
     expect(queryByText(onBlurError)).toBeInTheDocument()
   })
 
+  it("should set field errors from the field's validators", async () => {
+    const onChangeError = 'Please enter a different value (onChangeError)'
+    const onBlurError = 'Please enter a different value (onBlurError)'
+
+    function Comp() {
+      const form = useForm({
+        defaultValues: {
+          firstName: '',
+        },
+        validators: {
+          onChange: ({ value }) => {
+            if (value.firstName === 'other')
+              return {
+                form: 'Something went wrong',
+                fields: {
+                  firstName: onChangeError,
+                },
+              }
+            return undefined
+          },
+          onBlur: ({ value }) => {
+            if (value.firstName === 'other') return onBlurError
+            return undefined
+          },
+        },
+      })
+
+      const errors = form.useStore((s) => s.errorMap)
+      return (
+        <>
+          <form.Field
+            name="firstName"
+            defaultMeta={{ isTouched: true }}
+            children={(field) => (
+              <div>
+                <input
+                  data-testid="fieldinput"
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <p data-testid={'form-onchange'}>{errors.onChange}</p>
+                <p data-testid={'form-onblur'}>{errors.onBlur}</p>
+              </div>
+            )}
+          />
+        </>
+      )
+    }
+    const { getByTestId } = render(<Comp />)
+    expect(getByTestId('form-onchange')).toHaveTextContent('')
+    const input = getByTestId('fieldinput')
+    await user.type(input, 'other')
+    expect(getByTestId('form-onchange')).toHaveTextContent(
+      'Something went wrong',
+    )
+    await user.click(document.body)
+    expect(getByTestId('form-onblur')).toHaveTextContent(onBlurError)
+  })
+
   it('should validate async on change', async () => {
     type Person = {
       firstName: string
@@ -413,6 +474,82 @@ describe('useForm', () => {
     await user.type(input, 'other')
     await waitFor(() => getByText(error))
     expect(getByText(error)).toBeInTheDocument()
+  })
+
+  it("should set field errors from the the form's onChangeAsync validator", async () => {
+    type Person = {
+      firstName: string
+      lastName: string
+    }
+
+    const formFactory = createFormFactory<Person>()
+
+    function Comp() {
+      const form = formFactory.useForm({
+        defaultValues: {
+          firstName: '',
+          lastName: '',
+        },
+        validators: {
+          onChangeAsync: async ({ value }) => {
+            await sleep(10)
+            if (value.firstName === 'other') {
+              return {
+                form: 'Invalid form values',
+                fields: {
+                  firstName: 'First name cannot be "other"',
+                },
+              }
+            }
+            return null
+          },
+        },
+      })
+
+      const errors = form.useStore((s) => s.errorMap)
+
+      return (
+        <>
+          <form.Field
+            name="firstName"
+            defaultMeta={{ isTouched: true }}
+            children={(field) => (
+              <div>
+                <input
+                  data-testid="first-name-input"
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <p data-testid="first-name-error">
+                  {field.state.meta.errorMap.onChange}
+                </p>
+                <p data-testid="form-error">{errors.onChange}</p>
+              </div>
+            )}
+          />
+        </>
+      )
+    }
+
+    const { getByTestId } = render(<Comp />)
+    const input = getByTestId('first-name-input')
+    const firstNameErrorElement = getByTestId('first-name-error')
+    const formErrorElement = getByTestId('form-error')
+
+    expect(firstNameErrorElement).toBeEmptyDOMElement()
+    expect(formErrorElement).toBeEmptyDOMElement()
+
+    await user.type(input, 'other')
+
+    await waitFor(() => {
+      expect(firstNameErrorElement).not.toBeEmptyDOMElement()
+    })
+    expect(firstNameErrorElement).toHaveTextContent(
+      'First name cannot be "other"',
+    )
+    expect(formErrorElement).toHaveTextContent('Invalid form values')
   })
 
   it('should validate async on change and async on blur', async () => {
