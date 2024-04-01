@@ -60,11 +60,11 @@ export type FormValidateAsyncFn<
   signal: AbortSignal
 }) => FormValidationError<TFormData> | Promise<FormValidationError<TFormData>>
 
-export type FormValidator<TFormData, Type, Fn = unknown> = {
-  validate(options: { value: Type }, fn: Fn): ValidationError
+export type FormValidator<TFormData, TType, TFn = unknown> = {
+  validate(options: { value: TType }, fn: TFn): ValidationError
   validateAsync(
-    options: { value: Type },
-    fn: Fn,
+    options: { value: TType },
+    fn: TFn,
   ): Promise<FormValidationError<TFormData>>
 }
 
@@ -568,7 +568,7 @@ export class FormApi<
   validate = (
     cause: ValidationCause,
   ):
-  | InternalFormValidationError<TFormData>[]
+    | InternalFormValidationError<TFormData>[]
     | Promise<InternalFormValidationError<TFormData>[]> => {
     // Attempt to sync validate first
     const { hasErrored } = this.validateSync(cause)
