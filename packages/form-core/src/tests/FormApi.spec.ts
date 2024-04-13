@@ -1069,7 +1069,7 @@ describe('form api', () => {
             return {
               form: 'Something went wrong',
               fields: {
-                firstName: 'First name is required',
+                firstName: 'first name is required',
               },
             }
           }
@@ -1120,7 +1120,7 @@ describe('form api', () => {
             return {
               form: 'Something went wrong',
               fields: {
-                firstName: 'First name is required',
+                firstName: 'first name is required',
               },
             }
           }
@@ -1150,7 +1150,7 @@ describe('form api', () => {
     await form.handleSubmit()
 
     expect(form.state.fieldMeta['firstName'].errors).toEqual([
-      'First name is required',
+      'first name is required',
     ])
 
     firstNameField.setValue('this is a first name', { touch: true })
