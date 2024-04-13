@@ -1236,4 +1236,62 @@ describe('form api', () => {
       'people with even numbers in their names are not allowed',
     ])
   })
+
+  it("should be able to set errors on a field inside of an array from the form's validators", async () => {
+    interface Employee {
+      firstName: string
+    }
+    interface Form {
+      employees: Partial<Employee>[]
+    }
+
+    const form = new FormApi<Form>({
+      validators: {
+        onSubmit: ({ value }) => {
+          const fieldWithErrorIndex = value.employees.findIndex(
+            (v) => v.firstName === 'person-2',
+          )
+
+          if (fieldWithErrorIndex !== -1) {
+            return {
+              fields: {
+                [`employees[${fieldWithErrorIndex}].firstName`]:
+                  'people with even numbers in their names are not allowed',
+              },
+            }
+          }
+          return null
+        },
+      },
+    })
+
+    const field = new FieldApi({
+      form,
+      name: 'employees',
+      defaultValue: [],
+    })
+
+    field.mount()
+
+    const fieldInArray = new FieldApi({
+      form,
+      name: `employees[0].firstName`,
+      defaultValue: 'Darcy',
+    })
+    fieldInArray.setValue('person-2')
+    fieldInArray.mount()
+    await form.handleSubmit()
+
+    expect(form.state.isValid).toBe(false)
+    expect(fieldInArray.getMeta().errorMap).toMatchObject({
+      onSubmit: 'people with even numbers in their names are not allowed',
+    })
+
+    fieldInArray.setValue('Somebody else')
+    await form.handleSubmit()
+    expect(form.state.isValid).toBe(true)
+    expect(fieldInArray.getMeta().errorMap).toMatchObject({})
+
+    await form.handleSubmit()
+  })
 })
