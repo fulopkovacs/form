@@ -819,7 +819,7 @@ function normalizeError<TFormData>(rawError?: FormValidationError<TFormData>): {
   fieldErrors?: Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
 } {
   if (rawError) {
-    if (typeof rawError === 'object' && rawError.form) {
+    if (typeof rawError === 'object') {
       const formError = normalizeError(rawError.form).formError
       const fieldErrors = rawError.fields
       return { formError, fieldErrors }

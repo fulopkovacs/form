@@ -1198,4 +1198,42 @@ describe('form api', () => {
       onSubmit: 'Please enter a different value',
     })
   })
+
+  it("should set errors for the fields from the form's onSubmit validator for array fields", async () => {
+    const form = new FormApi({
+      defaultValues: {
+        people: ['person-1'],
+      },
+      validators: {
+        onSubmit: ({ value }) => {
+          if (value.people.includes('person-2')) {
+            return {
+              fields: {
+                people:
+                  'people with even numbers in their names are not allowed',
+              },
+            }
+          }
+
+          return null
+        },
+      },
+    })
+
+    const peopleField = new FieldApi({
+      form,
+      name: 'people',
+    })
+
+    peopleField.setValue((value) => [...value, 'person-2'])
+    peopleField.mount()
+
+    await form.handleSubmit()
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(form.state.isValid).toEqual(false)
+    expect(form.state.fieldMeta['people'].errors).toEqual([
+      'people with even numbers in their names are not allowed',
+    ])
+  })
 })
