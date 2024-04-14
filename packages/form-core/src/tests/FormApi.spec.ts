@@ -1150,7 +1150,7 @@ describe('form api', () => {
 
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(firstNameField.getMeta().errorMap).toMatchObject({
+    expect(firstNameField.getMeta().errorMap).toStrictEqual({
       onChange: 'first name is required',
     })
 
