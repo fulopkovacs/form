@@ -1131,10 +1131,21 @@ describe('form api', () => {
     const firstNameField = new FieldApi({
       form,
       name: 'firstName',
+      /* validators: {
+        onChange: ({ value }) => {
+          if (value === 'nothing') return 'not gonna happen sis'
+          // if (value.length === 0) {
+          //   return 'first name is required'
+          // }
+
+          return null
+        },
+      }, */
     })
 
     firstNameField.mount()
 
+    // Check if we get an error from the form's `onChange` validator
     firstNameField.setValue('', { touch: true })
 
     expect(form.state.isFieldsValid).toEqual(false)
@@ -1142,6 +1153,10 @@ describe('form api', () => {
     expect(firstNameField.getMeta().errorMap).toMatchObject({
       onChange: 'first name is required',
     })
+
+    // Check if we can make the error go away by changing the value
+    firstNameField.setValue('one', { touch: true })
+    expect(firstNameField.getMeta().errors).toStrictEqual([])
   })
 
   it("should remove the onSubmit errors set from the form's validators after the field has been touched", async () => {
