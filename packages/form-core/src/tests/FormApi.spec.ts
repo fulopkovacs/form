@@ -1099,13 +1099,49 @@ describe('form api', () => {
     await form.handleSubmit()
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(form.state.fieldMeta['lastName'].errors).toEqual([
-      'last name is required',
-    ])
+    expect(firstNameField.getMeta().errorMap).toMatchObject({
+      onSubmit: 'first name is required',
+    })
     expect(form.state.errorMap).toMatchObject({
       onSubmit: 'Something went wrong',
     })
     expect(form.state.errors).toEqual(['Something went wrong'])
+  })
+
+  it("should set errors for the fields from the form's onChange validator", async () => {
+    const form = new FormApi({
+      defaultValues: {
+        firstName: 'something',
+      },
+      validators: {
+        onChange: ({ value }) => {
+          if (value.firstName.length === 0) {
+            return {
+              fields: {
+                firstName: 'first name is required',
+              },
+            }
+          }
+
+          return null
+        },
+      },
+    })
+
+    const firstNameField = new FieldApi({
+      form,
+      name: 'firstName',
+    })
+
+    firstNameField.mount()
+
+    firstNameField.setValue('', { touch: true })
+
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(firstNameField.getMeta().errorMap).toMatchObject({
+      onChange: 'first name is required',
+    })
   })
 
   it("should remove the onSubmit errors set from the form's validators after the field has been touched", async () => {
