@@ -40,6 +40,10 @@ type FormValidationError<TFormData> =
   fields: Partial<Partial<Record<DeepKeys<TFormData>, ValidationErrorMap>>>
 } */
 
+export type FieldsErrorMapFromValidator<TFormData> = Partial<
+  Record<DeepKeys<TFormData>, ValidationErrorMap>
+>
+
 export type FormValidateFn<
   TFormData,
   TFormValidator extends Validator<TFormData, unknown> | undefined = undefined,
@@ -412,15 +416,21 @@ export class FormApi<
   }
 
   // TODO: This code is copied from FieldApi, we should refactor to share
-  validateSync = (cause: ValidationCause) => {
+  validateSync = (
+    cause: ValidationCause,
+  ): {
+    hasErrored: boolean
+    fields: FieldsErrorMapFromValidator<TFormData>
+  } => {
     const validates = getSyncValidatorArray(cause, this.options)
     let hasErrored = false as boolean
 
     console.info('validate form', { cause, validates })
 
-    let fieldErrors:
+    /* let fieldErrors:
       | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
-      | undefined
+      | undefined */
+    const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
 
     this.store.batch(() => {
       for (const validateObj of validates) {
@@ -435,18 +445,23 @@ export class FormApi<
           type: 'validate',
         })
 
-        const { formError, fieldErrors: fieldErrorsFromNormalizeError } =
-          normalizeError<TFormData>(rawError)
-        // TODO: Check if it's ok when we have multiple validators
-        if (fieldErrorsFromNormalizeError) {
-          fieldErrors = fieldErrors
-            ? { ...fieldErrors, ...fieldErrorsFromNormalizeError }
-            : fieldErrorsFromNormalizeError
-        }
+        const { formError, fieldErrors } = normalizeError<TFormData>(rawError)
+
         const errorMapKey = getErrorMapKey(validateObj.cause)
 
         if (fieldErrors) {
           for (const [field, fieldError] of Object.entries(fieldErrors)) {
+            // TODO: this is not that elegant... Rewrite it sending it to review.
+            const oldErrorMap =
+              fieldsErrorMap[field as DeepKeys<TFormData>] || {}
+            const newErrorMap = {
+              ...oldErrorMap,
+              [errorMapKey]: fieldError,
+            }
+            fieldsErrorMap[field as DeepKeys<TFormData>] = newErrorMap
+
+            console.log({ newErrorMap })
+
             const fieldMeta = this.getFieldMeta(field as DeepKeys<TFormData>)
             if (fieldMeta && fieldMeta.errorMap[errorMapKey] !== fieldError) {
               this.setFieldMeta(field as DeepKeys<TFormData>, (prev) => ({
@@ -494,7 +509,7 @@ export class FormApi<
       }))
     }
 
-    return { hasErrored, fieldErrors }
+    return { hasErrored, fields: fieldsErrorMap }
   }
 
   validateAsync = async (
@@ -609,11 +624,7 @@ export class FormApi<
   ): /* | InternalFormValidationError<TFormData>[]
     | Promise<InternalFormValidationError<TFormData>[]> => { */
 
-  | {
-        fieldErrors?:
-          | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
-          | undefined
-      }
+  | { fields: FieldsErrorMapFromValidator<TFormData> }
     /* | Promise<{
         fieldErrors?:
           | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
@@ -621,11 +632,11 @@ export class FormApi<
       }> => { */
     | Promise<InternalFormValidationError<TFormData>[]> => {
     // Attempt to sync validate first
-    const { hasErrored, fieldErrors } = this.validateSync(cause)
-    console.info({ hasErrored, fieldErrors })
+    const { hasErrored, fields } = this.validateSync(cause)
+    console.info({ hasErrored, fields })
 
     if (hasErrored || !this.options.asyncAlways) {
-      return { fieldErrors }
+      return { fields }
     }
 
     // No error? Attempt async validation

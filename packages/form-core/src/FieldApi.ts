@@ -511,7 +511,10 @@ export class FieldApi<
   moveValue = (aIndex: number, bIndex: number) =>
     this.form.moveFieldValues(this.name, aIndex, bIndex)
 
-  validateSync = (cause: ValidationCause, errorFromField: ValidationError) => {
+  validateSync = (
+    cause: ValidationCause,
+    errorFromForm: ValidationErrorMap,
+  ) => {
     const validates = getSyncValidatorArray(cause, this.options)
     console.info('validate field', { validates })
 
@@ -535,6 +538,8 @@ export class FieldApi<
         field: FieldApi<any, any, any, any>,
         validateObj: SyncValidator<any>,
       ) => {
+        const errorMapKey = getErrorMapKey(validateObj.cause)
+
         const error =
           //TODO: reword this part
           /*
@@ -551,9 +556,8 @@ export class FieldApi<
                   type: 'validate',
                 }),
               )
-            : errorFromField
+            : errorFromForm[errorMapKey]
 
-        const errorMapKey = getErrorMapKey(validateObj.cause)
         /* console.info('field', {
           error,
           fieldName: field.name,
@@ -570,7 +574,7 @@ export class FieldApi<
               ...prev.errorMap,
               [getErrorMapKey(validateObj.cause)]:
                 // Prefer the error message from the field validators if they exist
-                error ? error : errorFromField,
+                error ? error : errorFromForm[errorMapKey],
             },
           }))
         }
@@ -606,7 +610,7 @@ export class FieldApi<
         onSubmitError: this.state.meta.errorMap[submitErrKey],
         errorMap: this.state.meta.errorMap,
         value: this.state.value,
-        errorFromField,
+        errorFromForm,
         hasErrored,
       })
       this.setMeta((prev) => ({
@@ -748,18 +752,19 @@ export class FieldApi<
     // If the field is pristine and validatePristine is false, do not validate
     if (!this.state.meta.isTouched) return []
 
-    let validationErrorFromForm: ValidationError
+    let validationErrorFromForm: ValidationErrorMap = {}
 
     try {
       const formValidationResult = this.form.validate(cause)
       if (formValidationResult instanceof Promise) {
         // TODO: do something
       } else {
-        const { fieldErrors } = formValidationResult
-        if (fieldErrors && this.name in fieldErrors) {
-          validationErrorFromForm = fieldErrors[this.name]
+        const { fields } = formValidationResult
+        // TODO check if the fields has an error
+        const fieldErrorFromForm = fields[this.name]
+        if (fieldErrorFromForm) {
+          validationErrorFromForm = fieldErrorFromForm
         }
-        // TODO: check if field has an error
       }
     } catch (_) {}
 

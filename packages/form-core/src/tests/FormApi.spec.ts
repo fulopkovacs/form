@@ -1064,6 +1064,17 @@ describe('form api', () => {
         // lastName: '',
       },
       validators: {
+        /* onBlur: ({ value }) => {
+          if (value.firstName.length === 0) {
+            return {
+              fields: {
+                firstName: 'This is bad',
+              },
+            }
+          }
+
+          return null
+        }, */
         onSubmit: ({ value }) => {
           if (value.firstName.length === 0) {
             return {
@@ -1117,9 +1128,7 @@ describe('form api', () => {
     // Check if the error is gone after the value is changed
     firstNameField.setValue('nothing', { touch: true })
     await form.handleSubmit()
-    expect(firstNameField.getMeta().errors).toStrictEqual([
-      'not gonna happen sis',
-    ])
+    expect(firstNameField.getMeta().errors).toStrictEqual(['not gonna happen'])
 
     // Check if the error from the field's validator is shown
     firstNameField.setValue('something else', { touch: true })
