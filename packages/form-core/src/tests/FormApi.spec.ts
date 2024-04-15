@@ -1061,7 +1061,7 @@ describe('form api', () => {
     const form = new FormApi({
       defaultValues: {
         firstName: '',
-        lastName: '',
+        // lastName: '',
       },
       validators: {
         onSubmit: ({ value }) => {
@@ -1082,20 +1082,27 @@ describe('form api', () => {
     const firstNameField = new FieldApi({
       form,
       name: 'firstName',
-    })
-
-    const lastNameField = new FieldApi({
-      form,
-      name: 'lastName',
       validators: {
-        onChange: ({ value }) =>
-          value.length > 0 ? undefined : 'last name is required',
+        onSubmit: ({ value }) => {
+          if (value === 'nothing') return 'not gonna happen'
+          return null
+        },
       },
     })
 
-    firstNameField.mount()
-    lastNameField.mount()
+    // const lastNameField = new FieldApi({
+    //   form,
+    //   name: 'lastName',
+    //   validators: {
+    //     onChange: ({ value }) =>
+    //       value.length > 0 ? undefined : 'last name is required',
+    //   },
+    // })
 
+    firstNameField.mount()
+    // lastNameField.mount()
+
+    // Check if the error is returned from the form's onSubmit validator
     await form.handleSubmit()
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
@@ -1106,6 +1113,19 @@ describe('form api', () => {
       onSubmit: 'Something went wrong',
     })
     expect(form.state.errors).toEqual(['Something went wrong'])
+
+    // Check if the error is gone after the value is changed
+    firstNameField.setValue('nothing', { touch: true })
+    await form.handleSubmit()
+    expect(firstNameField.getMeta().errors).toStrictEqual([
+      'not gonna happen sis',
+    ])
+
+    // Check if the error from the field's validator is shown
+    firstNameField.setValue('something else', { touch: true })
+    await form.handleSubmit()
+    expect(firstNameField.getMeta().errors).toStrictEqual([])
+    expect(form.state.errors).toStrictEqual([])
   })
 
   it("should set errors for the fields from the form's onChange validator", async () => {
@@ -1131,16 +1151,16 @@ describe('form api', () => {
     const firstNameField = new FieldApi({
       form,
       name: 'firstName',
-      /* validators: {
+      validators: {
         onChange: ({ value }) => {
-          if (value === 'nothing') return 'not gonna happen sis'
+          if (value === 'nothing') return 'not gonna happen'
           // if (value.length === 0) {
           //   return 'first name is required'
           // }
 
           return null
         },
-      }, */
+      },
     })
 
     firstNameField.mount()
@@ -1150,12 +1170,25 @@ describe('form api', () => {
 
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(firstNameField.getMeta().errorMap).toStrictEqual({
-      onChange: 'first name is required',
-    })
+    expect(firstNameField.getMeta().errorMap.onChange).toBe(
+      'first name is required',
+    )
 
     // Check if we can make the error go away by changing the value
     firstNameField.setValue('one', { touch: true })
+    expect(firstNameField.getMeta().errorMap.onChange).toBe(undefined)
+    expect(firstNameField.getMeta().errors).toStrictEqual([])
+
+    // Check if we get an error from the field's `onChange` validator
+    firstNameField.setValue('nothing', { touch: true })
+
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(firstNameField.getMeta().errorMap.onChange).toBe('not gonna happen')
+
+    // Check if we can make the error go away by changing the value
+    firstNameField.setValue('one', { touch: true })
+    expect(firstNameField.getMeta().errorMap.onChange).toBe(undefined)
     expect(firstNameField.getMeta().errors).toStrictEqual([])
   })
 
@@ -1214,16 +1247,16 @@ describe('form api', () => {
 
     const form = new FormApi({
       defaultValues: {
-        name: 'test',
+        name: '',
       },
       validators: {
         onSubmitAsync: async ({ value }) => {
           await sleep(1000)
-          if (value.name === 'other')
+          if (value.name === '')
             return {
               form: 'Something went wrong',
               fields: {
-                name: 'Please enter a different value',
+                name: 'Name is required',
               },
             }
           return
@@ -1233,20 +1266,43 @@ describe('form api', () => {
     const field = new FieldApi({
       form,
       name: 'name',
+      validators: {
+        onSubmitAsync: async ({ value }) => {
+          await sleep(1000)
+          if (value === 'burger') return 'not gonna happen sis'
+          return null
+        },
+      },
     })
     form.mount()
 
     field.mount()
 
     expect(form.state.errors.length).toBe(0)
-    field.setValue('other', { touch: true })
+
+    // Check if the error is returned from the form's onSubmit validator
     form.handleSubmit()
     await vi.runAllTimersAsync()
     expect(form.state.errorMap).toMatchObject({
       onSubmit: 'Something went wrong',
     })
     expect(field.state.meta.errorMap).toMatchObject({
-      onSubmit: 'Please enter a different value',
+      onSubmit: 'Name is required',
+    })
+
+    // Check if the error goes away when the value is changed
+    field.setValue('other', { touch: true })
+    form.handleSubmit()
+    await vi.runAllTimersAsync()
+    expect(form.state.errors).toStrictEqual([])
+    expect(field.state.meta.errors).toStrictEqual([])
+
+    // Check if the field validator gives an error
+    field.setValue('burger', { touch: true })
+    form.handleSubmit()
+    await vi.runAllTimersAsync()
+    expect(field.state.meta.errorMap).toMatchObject({
+      onSubmit: 'not gonna happen sis',
     })
   })
 
@@ -1345,4 +1401,55 @@ describe('form api', () => {
 
     await form.handleSubmit()
   })
+
+  /* it("should set errors on a linked field from the form's onChange validator", async () => {
+    const form = new FormApi({
+      defaultValues: {
+        password: '',
+        confirm_password: '',
+      },
+      validators: {
+        onChange: ({ value }) => {
+          if (value.confirm_password !== value.password) {
+            // console.info({ value })
+            // return 'there is an error'
+            return {
+              fields: {
+                confirm_password: 'Passwords do not match',
+              },
+            }
+          }
+          return null
+        },
+      },
+    })
+
+    const passField = new FieldApi({
+      form,
+      name: 'password',
+    })
+
+    const passconfirmField = new FieldApi({
+      form,
+      name: 'confirm_password',
+      validators: {
+        onChangeListenTo: ['password'],
+      },
+    })
+
+    passField.mount()
+    passconfirmField.mount()
+
+    passField.setValue('one', { touch: true })
+
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(passconfirmField.getMeta().errorMap).toMatchObject({
+      onChange: 'Passwords do not match',
+    })
+
+    passconfirmField.setValue('one', { touch: true })
+    expect(passconfirmField.getMeta().errors).toStrictEqual([])
+  })
+  */
 })

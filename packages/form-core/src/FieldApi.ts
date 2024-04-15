@@ -447,6 +447,7 @@ export class FieldApi<
     options?: { touch?: boolean; notify?: boolean },
   ) => {
     this.form.setFieldValue(this.name, updater as never, options)
+    console.info(`new value: "${updater}"`)
     this.validate('change')
   }
 
@@ -510,8 +511,9 @@ export class FieldApi<
   moveValue = (aIndex: number, bIndex: number) =>
     this.form.moveFieldValues(this.name, aIndex, bIndex)
 
-  validateSync = (cause: ValidationCause) => {
+  validateSync = (cause: ValidationCause, errorFromField: ValidationError) => {
     const validates = getSyncValidatorArray(cause, this.options)
+    console.info('validate field', { validates })
 
     const linkedFields = this.getLinkedFields(cause)
     const linkedFieldValidates = linkedFields.reduce(
@@ -533,20 +535,42 @@ export class FieldApi<
         field: FieldApi<any, any, any, any>,
         validateObj: SyncValidator<any>,
       ) => {
-        const error = normalizeError(
-          field.runValidator({
-            validate: validateObj.validate,
-            value: { value: field.getValue(), fieldApi: field },
-            type: 'validate',
-          }),
-        )
+        const error =
+          //TODO: reword this part
+          /*
+          If `validateObj.validate` is `undefined`, the field does not have a
+          validator for this event, but there still could be an error that
+          needs to be cleaned up related to the current event left by the
+          form's validator.
+          /*/
+          validateObj.validate
+            ? normalizeError(
+                field.runValidator({
+                  validate: validateObj.validate,
+                  value: { value: field.getValue(), fieldApi: field },
+                  type: 'validate',
+                }),
+              )
+            : errorFromField
+
         const errorMapKey = getErrorMapKey(validateObj.cause)
+        /* console.info('field', {
+          error,
+          fieldName: field.name,
+          fieldValue: field.getValue(),
+          cause,
+          errorMapKey,
+        }) */
+
         if (field.state.meta.errorMap[errorMapKey] !== error) {
+          // console.log({ name: this.name, error, cause, meta: field.getMeta() })
           field.setMeta((prev) => ({
             ...prev,
             errorMap: {
               ...prev.errorMap,
-              [getErrorMapKey(validateObj.cause)]: error,
+              [getErrorMapKey(validateObj.cause)]:
+                // Prefer the error message from the field validators if they exist
+                error ? error : errorFromField,
             },
           }))
         }
@@ -556,10 +580,12 @@ export class FieldApi<
       }
 
       for (const validateObj of validates) {
-        if (!validateObj.validate) continue
+        // TODO: remove errors set from form if needed
+        // if (!validateObj.validate) continue
         validateFieldFn(this, validateObj)
       }
       for (const fieldValitateObj of linkedFieldValidates) {
+        // TODO: remove errors set from form if needed
         if (!fieldValitateObj.validate) continue
         validateFieldFn(fieldValitateObj.field, fieldValitateObj)
       }
@@ -570,11 +596,19 @@ export class FieldApi<
      *  to clear the error as soon as the user enters a valid value in the field
      */
     const submitErrKey = getErrorMapKey('submit')
+
     if (
       this.state.meta.errorMap[submitErrKey] &&
       cause !== 'submit' &&
       !hasErrored
     ) {
+      console.info('field - clean up onSubmit', {
+        onSubmitError: this.state.meta.errorMap[submitErrKey],
+        errorMap: this.state.meta.errorMap,
+        value: this.state.value,
+        errorFromField,
+        hasErrored,
+      })
       this.setMeta((prev) => ({
         ...prev,
         errorMap: {
@@ -582,6 +616,7 @@ export class FieldApi<
           [submitErrKey]: undefined,
         },
       }))
+      console.info('new meta', this.state.meta)
     }
 
     return { hasErrored }
@@ -713,12 +748,23 @@ export class FieldApi<
     // If the field is pristine and validatePristine is false, do not validate
     if (!this.state.meta.isTouched) return []
 
+    let validationErrorFromForm: ValidationError
+
     try {
-      this.form.validate(cause)
+      const formValidationResult = this.form.validate(cause)
+      if (formValidationResult instanceof Promise) {
+        // TODO: do something
+      } else {
+        const { fieldErrors } = formValidationResult
+        if (fieldErrors && this.name in fieldErrors) {
+          validationErrorFromForm = fieldErrors[this.name]
+        }
+        // TODO: check if field has an error
+      }
     } catch (_) {}
 
     // Attempt to sync validate first
-    const { hasErrored } = this.validateSync(cause)
+    const { hasErrored } = this.validateSync(cause, validationErrorFromForm)
 
     if (hasErrored && !this.options.asyncAlways) {
       return this.state.meta.errors

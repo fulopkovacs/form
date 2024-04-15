@@ -36,6 +36,10 @@ type FormValidationError<TFormData> =
       fields: Partial<Record<DeepKeys<TFormData>, ValidationError>>
     }
 
+/* export type FieldErrorMapFromFormValdiator<TFormData> = {
+  fields: Partial<Partial<Record<DeepKeys<TFormData>, ValidationErrorMap>>>
+} */
+
 export type FormValidateFn<
   TFormData,
   TFormValidator extends Validator<TFormData, unknown> | undefined = undefined,
@@ -234,6 +238,18 @@ export class FormApi<
               isNonEmptyArray(Object.values(field.errorMap).filter(Boolean)),
           )
 
+          // if fields have an `onSubmit` error, they still should be revalidated
+          /* const canFieldsSubmit = !fieldMetaValues.some((field) => {
+            if (field?.errorMap) {
+              const { onSubmit, ...errorMapWithoutOnSubmit } = field.errorMap
+              return isNonEmptyArray(
+                Object.values(errorMapWithoutOnSubmit).filter(Boolean),
+              )
+            } else {
+              return false
+            }
+          }) */
+
           const isTouched = fieldMetaValues.some((field) => field?.isTouched)
 
           const isDirty = fieldMetaValues.some((field) => field?.isDirty)
@@ -400,6 +416,12 @@ export class FormApi<
     const validates = getSyncValidatorArray(cause, this.options)
     let hasErrored = false as boolean
 
+    console.info('validate form', { cause, validates })
+
+    let fieldErrors:
+      | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
+      | undefined
+
     this.store.batch(() => {
       for (const validateObj of validates) {
         if (!validateObj.validate) continue
@@ -413,7 +435,14 @@ export class FormApi<
           type: 'validate',
         })
 
-        const { formError, fieldErrors } = normalizeError(rawError)
+        const { formError, fieldErrors: fieldErrorsFromNormalizeError } =
+          normalizeError<TFormData>(rawError)
+        // TODO: Check if it's ok when we have multiple validators
+        if (fieldErrorsFromNormalizeError) {
+          fieldErrors = fieldErrors
+            ? { ...fieldErrors, ...fieldErrorsFromNormalizeError }
+            : fieldErrorsFromNormalizeError
+        }
         const errorMapKey = getErrorMapKey(validateObj.cause)
 
         if (fieldErrors) {
@@ -465,7 +494,7 @@ export class FormApi<
       }))
     }
 
-    return { hasErrored }
+    return { hasErrored, fieldErrors }
   }
 
   validateAsync = async (
@@ -482,6 +511,9 @@ export class FormApi<
      * when there are no validators needed to be run
      */
     const promises: Promise<ValidationError | undefined>[] = []
+    let fieldErrors:
+      | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
+      | undefined
 
     for (const validateObj of validates) {
       if (!validateObj.validate) continue
@@ -522,7 +554,14 @@ export class FormApi<
           } catch (e: unknown) {
             rawError = e as ValidationError
           }
-          const { formError, fieldErrors } = normalizeError(rawError)
+          const { formError, fieldErrors: fieldErrorsFromNormalizeError } =
+            normalizeError<TFormData>(rawError)
+
+          if (fieldErrorsFromNormalizeError) {
+            fieldErrors = fieldErrors
+              ? { ...fieldErrors, ...fieldErrorsFromNormalizeError }
+              : fieldErrorsFromNormalizeError
+          }
           const errorMapKey = getErrorMapKey(validateObj.cause)
 
           if (fieldErrors) {
@@ -567,14 +606,26 @@ export class FormApi<
 
   validate = (
     cause: ValidationCause,
-  ):
-    | InternalFormValidationError<TFormData>[]
+  ): /* | InternalFormValidationError<TFormData>[]
+    | Promise<InternalFormValidationError<TFormData>[]> => { */
+
+  | {
+        fieldErrors?:
+          | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
+          | undefined
+      }
+    /* | Promise<{
+        fieldErrors?:
+          | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
+          | undefined
+      }> => { */
     | Promise<InternalFormValidationError<TFormData>[]> => {
     // Attempt to sync validate first
-    const { hasErrored } = this.validateSync(cause)
+    const { hasErrored, fieldErrors } = this.validateSync(cause)
+    console.info({ hasErrored, fieldErrors })
 
-    if (hasErrored && !this.options.asyncAlways) {
-      return this.state.errors
+    if (hasErrored || !this.options.asyncAlways) {
+      return { fieldErrors }
     }
 
     // No error? Attempt async validation
@@ -582,6 +633,7 @@ export class FormApi<
   }
 
   handleSubmit = async () => {
+    console.info('handleSubmit()')
     // Check to see that the form and all fields have been touched
     // If they have not, touch them all and run validation
     // Run form validation
