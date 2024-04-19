@@ -1027,12 +1027,26 @@ describe('form api', () => {
     const field = new FieldApi({
       form,
       name: 'firstName',
+      validators: {
+        onBlur: ({ value }) => {
+          return value.length > 0 ? undefined : 'this is bad'
+        },
+      },
     })
 
     field.mount()
 
     await form.handleSubmit()
     expect(form.state.errors).toStrictEqual(['first name is required'])
+    expect(field.state.meta.errors).toStrictEqual(['this is bad'])
+
+    field.setValue('something else', { touch: true })
+    expect(form.state.errors).toStrictEqual([])
+    field.handleBlur()
+    await form.handleSubmit()
+    expect(form.state.canSubmit).toBe(true)
+    expect(form.state.errors).toStrictEqual([])
+    expect(field.getMeta().errors).toStrictEqual([])
   })
 
   it('should run onChange validation during submit', async () => {
@@ -1064,7 +1078,7 @@ describe('form api', () => {
         // lastName: '',
       },
       validators: {
-        /* onBlur: ({ value }) => {
+        onBlur: ({ value }) => {
           if (value.firstName.length === 0) {
             return {
               fields: {
@@ -1074,7 +1088,7 @@ describe('form api', () => {
           }
 
           return null
-        }, */
+        },
         onSubmit: ({ value }) => {
           if (value.firstName.length === 0) {
             return {
@@ -1094,6 +1108,13 @@ describe('form api', () => {
       form,
       name: 'firstName',
       validators: {
+        /* onBlur: ({ value }) => {
+          if (value.length === 0) {
+            return 'This is bad'
+          }
+
+          return null
+        }, */
         onSubmit: ({ value }) => {
           if (value === 'nothing') return 'not gonna happen'
           return null
@@ -1127,7 +1148,12 @@ describe('form api', () => {
 
     // Check if the error is gone after the value is changed
     firstNameField.setValue('nothing', { touch: true })
+    // Handling the blur is needed, because the `blur` error on the field
+    // is not cleared up before `handleSubmit` is called, so the field
+    // is considered to be invalid.
+    firstNameField.handleBlur()
     await form.handleSubmit()
+
     expect(firstNameField.getMeta().errors).toStrictEqual(['not gonna happen'])
 
     // Check if the error from the field's validator is shown
@@ -1259,6 +1285,16 @@ describe('form api', () => {
         name: '',
       },
       validators: {
+        onBlurAsync: async ({ value }) => {
+          await sleep(1500)
+          if (value.name === '')
+            return {
+              fields: {
+                name: 'this is bad',
+              },
+            }
+          return
+        },
         onSubmitAsync: async ({ value }) => {
           await sleep(1000)
           if (value.name === '')
@@ -1301,9 +1337,12 @@ describe('form api', () => {
 
     // Check if the error goes away when the value is changed
     field.setValue('other', { touch: true })
+    // TODO: Check if it's okay, that we have to handle the blur ourselves
+    field.handleBlur()
     form.handleSubmit()
     await vi.runAllTimersAsync()
     expect(form.state.errors).toStrictEqual([])
+    expect(field.state.value).toBe('other')
     expect(field.state.meta.errors).toStrictEqual([])
 
     // Check if the field validator gives an error

@@ -425,11 +425,8 @@ export class FormApi<
     const validates = getSyncValidatorArray(cause, this.options)
     let hasErrored = false as boolean
 
-    console.info('validate form', { cause, validates })
+    // console.info('validate form', { cause, validates })
 
-    /* let fieldErrors:
-      | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
-      | undefined */
     const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
 
     this.store.batch(() => {
@@ -460,8 +457,6 @@ export class FormApi<
             }
             fieldsErrorMap[field as DeepKeys<TFormData>] = newErrorMap
 
-            console.log({ newErrorMap })
-
             const fieldMeta = this.getFieldMeta(field as DeepKeys<TFormData>)
             if (fieldMeta && fieldMeta.errorMap[errorMapKey] !== fieldError) {
               this.setFieldMeta(field as DeepKeys<TFormData>, (prev) => ({
@@ -484,7 +479,8 @@ export class FormApi<
             },
           }))
         }
-        if (formError) {
+        // TODO: check if it's correct
+        if (formError || fieldErrors) {
           hasErrored = true
         }
       }
@@ -514,20 +510,30 @@ export class FormApi<
 
   validateAsync = async (
     cause: ValidationCause,
-  ): Promise<ValidationError[]> => {
+  ): Promise<{
+    fields: FieldsErrorMapFromValidator<TFormData>
+  }> => {
     const validates = getAsyncValidatorArray(cause, this.options)
+    console.info('form validateAsync')
 
     if (!this.state.isFormValidating) {
       this.store.setState((prev) => ({ ...prev, isFormValidating: true }))
     }
 
+    type ValidationPromiseResult =
+      | {
+          fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>
+          errorMapKey: ValidationErrorMapKeys
+        }
+      | undefined
     /**
      * We have to use a for loop and generate our promises this way, otherwise it won't be sync
      * when there are no validators needed to be run
      */
-    const promises: Promise<ValidationError | undefined>[] = []
+    const promises: Promise<ValidationPromiseResult>[] = []
+
     let fieldErrors:
-      | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
+      | Partial<Record<DeepKeys<TFormData>, ValidationError>>
       | undefined
 
     for (const validateObj of validates) {
@@ -543,7 +549,20 @@ export class FormApi<
       }
 
       promises.push(
-        new Promise<ValidationError | undefined>(async (resolve) => {
+        new Promise<
+          | {
+              fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>
+              errorMapKey: ValidationErrorMapKeys
+            }
+          | undefined
+        >(async (resolve) => {
+          /* new Promise<
+          | {
+              fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>,
+              errorMapKey: ValidationErrorMapKeys
+            }
+          | undefined
+        >(async (resolve) => { */
           let rawError!: ValidationError | undefined
           try {
             rawError = await new Promise((rawResolve, rawReject) => {
@@ -597,26 +616,54 @@ export class FormApi<
             ...prev,
             errorMap: {
               ...prev.errorMap,
-              [getErrorMapKey(cause)]: formError,
+              // TODO: With the prev line, it was `onSubmit` all the time
+              [errorMapKey]: formError,
             },
           }))
 
-          resolve(formError)
+          resolve(fieldErrors ? { fieldErrors, errorMapKey } : undefined)
         }),
       )
     }
 
-    let results: ValidationError[] = []
+    // let results: ValidationError[] = []
+
+    let results: ValidationPromiseResult[] = []
+
+    const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
     if (promises.length) {
+      /*
+        We need type assertion here to avoid the following error:
+        "Type instantiation is excessively deep and possibly infinite"
+      */
       results = await Promise.all(promises)
+      // TODO: build the fieldsErrorMap
+      for (const fieldValidationResult of results) {
+        if (fieldValidationResult?.fieldErrors) {
+          const { errorMapKey } = fieldValidationResult
+          // loop through the validation errors
+          for (const [field, fieldError] of Object.entries(
+            fieldValidationResult.fieldErrors,
+          )) {
+            const oldErrorMap =
+              fieldsErrorMap[field as DeepKeys<TFormData>] || {}
+            const newErrorMap = {
+              ...oldErrorMap,
+              [errorMapKey]: fieldError,
+            }
+            fieldsErrorMap[field as DeepKeys<TFormData>] = newErrorMap
+          }
+        }
+      }
     }
+    console.info({ results: JSON.stringify(results, null, 2) })
 
     this.store.setState((prev) => ({
       ...prev,
       isFormValidating: false,
     }))
 
-    return results.filter(Boolean)
+    return { fields: fieldsErrorMap }
   }
 
   validate = (
@@ -625,17 +672,12 @@ export class FormApi<
     | Promise<InternalFormValidationError<TFormData>[]> => { */
 
   | { fields: FieldsErrorMapFromValidator<TFormData> }
-    /* | Promise<{
-        fieldErrors?:
-          | Partial<Partial<Record<DeepKeys<TFormData>, ValidationError>>>
-          | undefined
-      }> => { */
-    | Promise<InternalFormValidationError<TFormData>[]> => {
+    // | Promise<InternalFormValidationError<TFormData>[]> => {
+    | Promise<{ fields: FieldsErrorMapFromValidator<TFormData> }> => {
     // Attempt to sync validate first
     const { hasErrored, fields } = this.validateSync(cause)
-    console.info({ hasErrored, fields })
 
-    if (hasErrored || !this.options.asyncAlways) {
+    if (hasErrored && !this.options.asyncAlways) {
       return { fields }
     }
 
@@ -644,7 +686,7 @@ export class FormApi<
   }
 
   handleSubmit = async () => {
-    console.info('handleSubmit()')
+    console.info('-----------handleSubmit()')
     // Check to see that the form and all fields have been touched
     // If they have not, touch them all and run validation
     // Run form validation

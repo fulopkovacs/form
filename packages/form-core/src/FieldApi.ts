@@ -624,6 +624,7 @@ export class FieldApi<
     // Get the field-specific error messages that are coming from the form's validator
     // TODO: rename this variable
     const things = await formValidationResultPromise
+    console.log({ things })
 
     const linkedFields = this.getLinkedFields(cause)
     console.log({ linkedFields: linkedFields.map((f) => f.name) })
@@ -739,11 +740,9 @@ export class FieldApi<
     }
 
     let results: ValidationError[] = []
-    let linkedPromisesResults: ValidationError[] = []
     if (validatesPromises.length || linkedPromises.length) {
       results = await Promise.all(validatesPromises)
-      linkedPromisesResults = await Promise.all(linkedPromises)
-      console.info({ linkedPromisesResults, field: this.name })
+      await Promise.all(linkedPromises)
     }
 
     this.setMeta((prev) => ({ ...prev, isValidating: false }))
@@ -752,7 +751,7 @@ export class FieldApi<
       linkedField.setMeta((prev) => ({ ...prev, isValidating: false }))
     }
 
-    return [...results, ...linkedPromisesResults].filter(Boolean)
+    return results.filter(Boolean)
   }
 
   validate = (
