@@ -673,4 +673,73 @@ describe('useForm', () => {
     await waitFor(() => getByText(error))
     expect(getByText(error)).toBeInTheDocument()
   })
+
+  it("should set errors on the fields from the form's onChange validator", async () => {
+    type Person = {
+      firstName: string
+      lastName: string
+    }
+    const error = 'Please enter a different value'
+    const formErrorMessage = 'Something went wrong'
+
+    const formFactory = createFormFactory<Person>()
+
+    function Comp() {
+      const form = formFactory.useForm({
+        defaultValues: {
+          firstName: '',
+          lastName: '',
+        },
+        validators: {
+          onChange: ({ value }) => {
+            console.log({ value })
+            if (value.firstName === 'Tom') {
+              return {
+                form: formErrorMessage,
+                fields: { firstName: error },
+              }
+            }
+            return null
+          },
+        },
+      })
+
+      const onChangeError = form.useStore((s) => s.errorMap.onChange)
+
+      return (
+        <>
+          <form.Field
+            name="firstName"
+            children={(field) => (
+              <>
+                <input
+                  data-testid="fieldinput"
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+
+                <p data-testid="fielderror">
+                  {field.state.meta.touchedErrors.join('')}
+                </p>
+              </>
+            )}
+          />
+          <p data-testid="formerror">{onChangeError}</p>
+        </>
+      )
+    }
+
+    const { getByTestId, queryByText } = render(<Comp />)
+    const input = getByTestId('fieldinput')
+    const fieldError = getByTestId('fielderror')
+    const formError = getByTestId('formerror')
+    expect(queryByText(error)).not.toBeInTheDocument()
+    expect(queryByText(formErrorMessage)).not.toBeInTheDocument()
+
+    await user.type(input, 'Tom')
+    await waitFor(() => expect(fieldError.textContent).toBe(error))
+    await waitFor(() => expect(formError.textContent).toBe(formErrorMessage))
+  })
 })
