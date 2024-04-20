@@ -692,7 +692,6 @@ describe('useForm', () => {
         },
         validators: {
           onChange: ({ value }) => {
-            console.log({ value })
             if (value.firstName === 'Tom') {
               return {
                 form: formErrorMessage,
