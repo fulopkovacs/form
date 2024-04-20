@@ -1450,7 +1450,7 @@ describe('form api', () => {
     await form.handleSubmit()
   })
 
-  /* it("should set errors on a linked field from the form's onChange validator", async () => {
+  it("should set errors on a linked field from the form's onChange validator", async () => {
     const form = new FormApi({
       defaultValues: {
         password: '',
@@ -1459,8 +1459,6 @@ describe('form api', () => {
       validators: {
         onChange: ({ value }) => {
           if (value.confirm_password !== value.password) {
-            // console.info({ value })
-            // return 'there is an error'
             return {
               fields: {
                 confirm_password: 'Passwords do not match',
@@ -1499,5 +1497,64 @@ describe('form api', () => {
     passconfirmField.setValue('one', { touch: true })
     expect(passconfirmField.getMeta().errors).toStrictEqual([])
   })
-  */
+
+  it("should set errors on a linked field from the form's onChangeAsync validator", async () => {
+    vi.useRealTimers()
+    let resolve!: () => void
+    const promise = new Promise((r) => {
+      resolve = r as never
+    })
+    const fn = vi.fn()
+
+    const form = new FormApi({
+      defaultValues: {
+        password: '',
+        confirm_password: '',
+      },
+      validators: {
+        onChangeAsync: async ({ value }) => {
+          await promise
+          fn()
+          if (value.confirm_password !== value.password) {
+            return {
+              fields: {
+                confirm_password: 'Passwords do not match',
+              },
+            }
+          }
+          return null
+        },
+      },
+    })
+
+    const passField = new FieldApi({
+      form,
+      name: 'password',
+    })
+
+    const passconfirmField = new FieldApi({
+      form,
+      name: 'confirm_password',
+      validators: {
+        onChangeListenTo: ['password'],
+      },
+    })
+
+    passField.mount()
+    passconfirmField.mount()
+
+    passField.setValue('one', { touch: true })
+    resolve()
+    // Allow for some micro-ticks to allow the promise to resolve
+    await sleep(3)
+
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(passconfirmField.getMeta().errorMap).toMatchObject({
+      onChange: 'Passwords do not match',
+    })
+
+    passconfirmField.setValue('one', { touch: true })
+    expect(passconfirmField.getMeta().errors).toStrictEqual([])
+  })
 })
