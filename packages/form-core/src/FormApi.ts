@@ -425,8 +425,6 @@ export class FormApi<
     const validates = getSyncValidatorArray(cause, this.options)
     let hasErrored = false as boolean
 
-    // console.info('validate form', { cause, validates })
-
     const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
 
     this.store.batch(() => {
@@ -686,7 +684,6 @@ export class FormApi<
   }
 
   handleSubmit = async () => {
-    console.info('-----------handleSubmit()')
     // Check to see that the form and all fields have been touched
     // If they have not, touch them all and run validation
     // Run form validation

@@ -447,7 +447,6 @@ export class FieldApi<
     options?: { touch?: boolean; notify?: boolean },
   ) => {
     this.form.setFieldValue(this.name, updater as never, options)
-    console.info(`new value: "${updater}"`, { field: this.name })
     this.validate('change')
   }
 
@@ -516,7 +515,6 @@ export class FieldApi<
     errorFromForm: ValidationErrorMap,
   ) => {
     const validates = getSyncValidatorArray(cause, this.options)
-    // console.info('validateSync field', { validates })
 
     const linkedFields = this.getLinkedFields(cause)
     const linkedFieldValidates = linkedFields.reduce(
@@ -606,8 +604,6 @@ export class FieldApi<
         },
       }))
     }
-
-    console.info('field', { hasErrored, field: this.name })
 
     return { hasErrored }
   }
@@ -758,7 +754,6 @@ export class FieldApi<
     cause: ValidationCause,
   ): ValidationError[] | Promise<ValidationError[]> => {
     // If the field is pristine and validatePristine is false, do not validate
-    console.info('field - validate()', { field: this.name })
     if (!this.state.meta.isTouched) return []
 
     let validationErrorFromForm: ValidationErrorMap = {}
