@@ -425,6 +425,8 @@ export class FormApi<
     const validates = getSyncValidatorArray(cause, this.options)
     let hasErrored = false as boolean
 
+    // console.info('validate form', { cause, validates })
+
     const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
 
     this.store.batch(() => {
@@ -512,6 +514,7 @@ export class FormApi<
     fields: FieldsErrorMapFromValidator<TFormData>
   }> => {
     const validates = getAsyncValidatorArray(cause, this.options)
+    console.info('form validateAsync')
 
     if (!this.state.isFormValidating) {
       this.store.setState((prev) => ({ ...prev, isFormValidating: true }))
@@ -653,6 +656,7 @@ export class FormApi<
         }
       }
     }
+    console.info({ results: JSON.stringify(results, null, 2) })
 
     this.store.setState((prev) => ({
       ...prev,
@@ -682,6 +686,12 @@ export class FormApi<
   }
 
   handleSubmit = async () => {
+    console.info('-----------handleSubmit()')
+    // Check to see that the form and all fields have been touched
+    // If they have not, touch them all and run validation
+    // Run form validation
+    // Submit the form
+
     this.store.setState((old) => ({
       ...old,
       // Submission attempts mark the form as not submitted

@@ -447,6 +447,7 @@ export class FieldApi<
     options?: { touch?: boolean; notify?: boolean },
   ) => {
     this.form.setFieldValue(this.name, updater as never, options)
+    console.info(`new value: "${updater}"`, { field: this.name })
     this.validate('change')
   }
 
@@ -515,6 +516,7 @@ export class FieldApi<
     errorFromForm: ValidationErrorMap,
   ) => {
     const validates = getSyncValidatorArray(cause, this.options)
+    // console.info('validateSync field', { validates })
 
     const linkedFields = this.getLinkedFields(cause)
     const linkedFieldValidates = linkedFields.reduce(
@@ -605,6 +607,8 @@ export class FieldApi<
       }))
     }
 
+    console.info('field', { hasErrored, field: this.name })
+
     return { hasErrored }
   }
 
@@ -615,12 +619,15 @@ export class FieldApi<
     }>,
   ) => {
     const validates = getAsyncValidatorArray(cause, this.options)
+    console.info('field validateAsync', { field: this.name })
 
     // Get the field-specific error messages that are coming from the form's validator
     // TODO: rename this variable
     const things = await formValidationResultPromise
+    console.log({ things })
 
     const linkedFields = this.getLinkedFields(cause)
+    console.log({ linkedFields: linkedFields.map((f) => f.name) })
     const linkedFieldValidates = linkedFields.reduce(
       (acc, field) => {
         const fieldValidates = getAsyncValidatorArray(cause, field.options)
@@ -695,6 +702,13 @@ export class FieldApi<
           // clean up field errors
           const fieldErrorFromForm = things.fields[this.name]?.[errorMapKey]
           const fieldError = error || fieldErrorFromForm
+          console.info({
+            errorMapKey,
+            fieldError,
+            error,
+            fieldErrorFromForm,
+            field: field.name,
+          })
           field.setMeta((prev) => {
             return {
               ...prev,
@@ -744,6 +758,7 @@ export class FieldApi<
     cause: ValidationCause,
   ): ValidationError[] | Promise<ValidationError[]> => {
     // If the field is pristine and validatePristine is false, do not validate
+    console.info('field - validate()', { field: this.name })
     if (!this.state.meta.isTouched) return []
 
     let validationErrorFromForm: ValidationErrorMap = {}

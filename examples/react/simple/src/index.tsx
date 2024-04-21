@@ -24,17 +24,6 @@ export default function App() {
       // Do something with form data
       console.log(value)
     },
-    validators: {
-      onSubmit: ({ value }) => {
-        if (value.firstName === 'Tom') {
-          return {
-            fields: {
-              firstName: 'Tom is a genius',
-            },
-          }
-        }
-      },
-    },
   })
 
   return (
@@ -52,12 +41,6 @@ export default function App() {
           <form.Field
             name="firstName"
             validators={{
-              /* onSubmit: ({ value }) => {
-                if (value === 'other') {
-                  return 'No other'
-                }
-                return null
-              }, */
               onChange: ({ value }) =>
                 !value
                   ? 'A first name is required'
