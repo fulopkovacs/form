@@ -512,7 +512,6 @@ export class FormApi<
     fields: FieldsErrorMapFromValidator<TFormData>
   }> => {
     const validates = getAsyncValidatorArray(cause, this.options)
-    console.info('form validateAsync')
 
     if (!this.state.isFormValidating) {
       this.store.setState((prev) => ({ ...prev, isFormValidating: true }))
@@ -654,7 +653,6 @@ export class FormApi<
         }
       }
     }
-    console.info({ results: JSON.stringify(results, null, 2) })
 
     this.store.setState((prev) => ({
       ...prev,
