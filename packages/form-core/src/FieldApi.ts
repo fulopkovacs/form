@@ -695,13 +695,7 @@ export class FieldApi<
           // clean up field errors
           const fieldErrorFromForm = things.fields[this.name]?.[errorMapKey]
           const fieldError = error || fieldErrorFromForm
-          console.info({
-            errorMapKey,
-            fieldError,
-            error,
-            fieldErrorFromForm,
-            field: field.name,
-          })
+          console.info('why is this needed')
           field.setMeta((prev) => {
             return {
               ...prev,
