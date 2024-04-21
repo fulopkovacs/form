@@ -615,15 +615,12 @@ export class FieldApi<
     }>,
   ) => {
     const validates = getAsyncValidatorArray(cause, this.options)
-    console.info('field validateAsync', { field: this.name })
 
     // Get the field-specific error messages that are coming from the form's validator
     // TODO: rename this variable
     const things = await formValidationResultPromise
-    console.log({ things })
 
     const linkedFields = this.getLinkedFields(cause)
-    console.log({ linkedFields: linkedFields.map((f) => f.name) })
     const linkedFieldValidates = linkedFields.reduce(
       (acc, field) => {
         const fieldValidates = getAsyncValidatorArray(cause, field.options)
