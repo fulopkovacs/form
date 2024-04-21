@@ -1392,7 +1392,51 @@ describe('form api', () => {
     ])
   })
 
-  it("should be able to set errors on a field inside of an array from the form's validators", async () => {
+  it("should set errors for the fields from the form's onSubmitAsync validator for array fields", async () => {
+    vi.useFakeTimers()
+
+    const form = new FormApi({
+      defaultValues: {
+        people: ['person-1'],
+      },
+      validators: {
+        onSubmitAsync: async ({ value }) => {
+          await sleep(1000)
+          if (value.people.includes('person-2')) {
+            return {
+              fields: {
+                people:
+                  'people with even numbers in their names are not allowed',
+              },
+            }
+          }
+
+          return null
+        },
+      },
+    })
+
+    const peopleField = new FieldApi({
+      form,
+      name: 'people',
+    })
+
+    form.mount()
+    peopleField.setValue((value) => [...value, 'person-2'])
+    peopleField.mount()
+    expect(form.state.errors.length).toBe(0)
+
+    form.handleSubmit()
+    await vi.runAllTimersAsync()
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(form.state.isValid).toEqual(false)
+    expect(form.state.fieldMeta['people'].errors).toEqual([
+      'people with even numbers in their names are not allowed',
+    ])
+  })
+
+  it("should be able to set errors on nested field inside of an array from the form's validators", async () => {
     interface Employee {
       firstName: string
     }
