@@ -618,7 +618,7 @@ export class FieldApi<
 
     // Get the field-specific error messages that are coming from the form's validator
     // TODO: rename this variable
-    const things = await formValidationResultPromise
+    const formValidationResults = await formValidationResultPromise
 
     const linkedFields = this.getLinkedFields(cause)
     const linkedFieldValidates = linkedFields.reduce(
@@ -693,7 +693,8 @@ export class FieldApi<
           }
           const error = normalizeError(rawError)
           // clean up field errors
-          const fieldErrorFromForm = things.fields[this.name]?.[errorMapKey]
+          const fieldErrorFromForm =
+            formValidationResults.fields[this.name]?.[errorMapKey]
           const fieldError = error || fieldErrorFromForm
           field.setMeta((prev) => {
             return {
