@@ -610,15 +610,14 @@ export class FieldApi<
 
   validateAsync = async (
     cause: ValidationCause,
-    formValidationResultPromise: Promise<{
-      fields: FieldsErrorMapFromValidator<TParentData>
-    }>,
+    formValidationResultPromise: Promise<
+      FieldsErrorMapFromValidator<TParentData>
+    >,
   ) => {
     const validates = getAsyncValidatorArray(cause, this.options)
 
     // Get the field-specific error messages that are coming from the form's validator
-    // TODO: rename this variable
-    const formValidationResults = await formValidationResultPromise
+    const asyncFormValidationResutts = await formValidationResultPromise
 
     const linkedFields = this.getLinkedFields(cause)
     const linkedFieldValidates = linkedFields.reduce(
@@ -694,7 +693,7 @@ export class FieldApi<
           const error = normalizeError(rawError)
           // clean up field errors
           const fieldErrorFromForm =
-            formValidationResults.fields[this.name]?.[errorMapKey]
+            asyncFormValidationResutts[this.name]?.[errorMapKey]
           const fieldError = error || fieldErrorFromForm
           field.setMeta((prev) => {
             return {
@@ -748,18 +747,16 @@ export class FieldApi<
     if (!this.state.meta.isTouched) return []
 
     let validationErrorFromForm: ValidationErrorMap = {}
-    let formValidationResultPromise: Promise<{
-      fields: FieldsErrorMapFromValidator<TParentData>
-    }> = Promise.resolve({ fields: {} })
+    let formValidationResultPromise: Promise<
+      FieldsErrorMapFromValidator<TParentData>
+    > = Promise.resolve({})
 
     try {
       const formValidationResult = this.form.validate(cause)
       if (formValidationResult instanceof Promise) {
         formValidationResultPromise = formValidationResult
       } else {
-        const { fields } = formValidationResult
-        // TODO check if the fields has an error
-        const fieldErrorFromForm = fields[this.name]
+        const fieldErrorFromForm = formValidationResult[this.name]
         if (fieldErrorFromForm) {
           validationErrorFromForm = fieldErrorFromForm
         }

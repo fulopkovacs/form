@@ -406,7 +406,7 @@ export class FormApi<
     cause: ValidationCause,
   ): {
     hasErrored: boolean
-    fields: FieldsErrorMapFromValidator<TFormData>
+    fieldsErrorMap: FieldsErrorMapFromValidator<TFormData>
   } => {
     const validates = getSyncValidatorArray(cause, this.options)
     let hasErrored = false as boolean
@@ -489,14 +489,12 @@ export class FormApi<
       }))
     }
 
-    return { hasErrored, fields: fieldsErrorMap }
+    return { hasErrored, fieldsErrorMap }
   }
 
   validateAsync = async (
     cause: ValidationCause,
-  ): Promise<{
-    fields: FieldsErrorMapFromValidator<TFormData>
-  }> => {
+  ): Promise<FieldsErrorMapFromValidator<TFormData>> => {
     const validates = getAsyncValidatorArray(cause, this.options)
 
     if (!this.state.isFormValidating) {
@@ -539,13 +537,6 @@ export class FormApi<
             }
           | undefined
         >(async (resolve) => {
-          /* new Promise<
-          | {
-              fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>,
-              errorMapKey: ValidationErrorMapKeys
-            }
-          | undefined
-        >(async (resolve) => { */
           let rawError!: ValidationError | undefined
           try {
             rawError = await new Promise((rawResolve, rawReject) => {
@@ -599,7 +590,6 @@ export class FormApi<
             ...prev,
             errorMap: {
               ...prev.errorMap,
-              // TODO: With the prev line, it was `onSubmit` all the time
               [errorMapKey]: formError,
             },
           }))
@@ -609,22 +599,15 @@ export class FormApi<
       )
     }
 
-    // let results: ValidationError[] = []
-
     let results: ValidationPromiseResult[] = []
 
     const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
     if (promises.length) {
-      /*
-        We need type assertion here to avoid the following error:
-        "Type instantiation is excessively deep and possibly infinite"
-      */
       results = await Promise.all(promises)
-      // TODO: build the fieldsErrorMap
       for (const fieldValidationResult of results) {
         if (fieldValidationResult?.fieldErrors) {
           const { errorMapKey } = fieldValidationResult
-          // loop through the validation errors
+
           for (const [field, fieldError] of Object.entries(
             fieldValidationResult.fieldErrors,
           )) {
@@ -645,22 +628,19 @@ export class FormApi<
       isFormValidating: false,
     }))
 
-    return { fields: fieldsErrorMap }
+    return fieldsErrorMap
   }
 
   validate = (
     cause: ValidationCause,
-  ): /* | InternalFormValidationError<TFormData>[]
-    | Promise<InternalFormValidationError<TFormData>[]> => { */
-
-  | { fields: FieldsErrorMapFromValidator<TFormData> }
-    // | Promise<InternalFormValidationError<TFormData>[]> => {
-    | Promise<{ fields: FieldsErrorMapFromValidator<TFormData> }> => {
+  ):
+    | FieldsErrorMapFromValidator<TFormData>
+    | Promise<FieldsErrorMapFromValidator<TFormData>> => {
     // Attempt to sync validate first
-    const { hasErrored, fields } = this.validateSync(cause)
+    const { hasErrored, fieldsErrorMap } = this.validateSync(cause)
 
     if (hasErrored && !this.options.asyncAlways) {
-      return { fields }
+      return fieldsErrorMap
     }
 
     // No error? Attempt async validation
