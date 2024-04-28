@@ -19,26 +19,12 @@ import type {
   Validator,
 } from './types'
 
-type FieldErrorFromFormValidator<TFormData> = {
-  formValidatorError: Partial<
-    Record<ValidationCause, Partial<DeepKeys<TFormData>>>
-  >
-}
-
-type InternalFormValidationError<TFormData> =
-  | ValidationError
-  | FieldErrorFromFormValidator<TFormData>
-
 type FormValidationError<TFormData> =
   | ValidationError
   | {
       form?: ValidationError
       fields: Partial<Record<DeepKeys<TFormData>, ValidationError>>
     }
-
-/* export type FieldErrorMapFromFormValdiator<TFormData> = {
-  fields: Partial<Partial<Record<DeepKeys<TFormData>, ValidationErrorMap>>>
-} */
 
 export type FieldsErrorMapFromValidator<TFormData> = Partial<
   Record<DeepKeys<TFormData>, ValidationErrorMap>
