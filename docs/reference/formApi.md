@@ -101,7 +101,7 @@ An object representing the options for a form.
 - ```tsx
     onBlurAsync?:  (values: TData,formApi: FormApi<TData>) => FormValidationError<TFormData> | Promise<FormValidationError<TFormData>>
   ```
-  -  Optional onBlur asynchronous validation method for when a field loses focus return a `ValidationError`  or a promise of `Promise<ValidationError>`
+  -  Optional onBlur asynchronous validation method for when a field loses focus return a `FormValidationError<TFormData>`  or a promise of `Promise<FormValidationError<TFormData>>`
 
 - ```tsx
     onBlurAsyncDebounceMs?: number
