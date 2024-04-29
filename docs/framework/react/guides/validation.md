@@ -156,7 +156,7 @@ As shown above, each `<Field>` accepts its own validation rules via the `onChang
 
 Example:
 
-```typescript
+```tsx
 export default function App() {
   const form = useForm({
     defaultValues: {
@@ -198,7 +198,7 @@ export default function App() {
 
 You can set errors on the fields from the form's validators. One common use case for this is validating all the fields on submit by calling a single API endpoint in the form's `onSubmitAsync` validator.
 
-```typescript
+```tsx
 export default function App() {
   const form = useForm({
     defaultValues: {
