@@ -228,18 +228,6 @@ export class FormApi<
               isNonEmptyArray(Object.values(field.errorMap).filter(Boolean)),
           )
 
-          // if fields have an `onSubmit` error, they still should be revalidated
-          /* const canFieldsSubmit = !fieldMetaValues.some((field) => {
-            if (field?.errorMap) {
-              const { onSubmit, ...errorMapWithoutOnSubmit } = field.errorMap
-              return isNonEmptyArray(
-                Object.values(errorMapWithoutOnSubmit).filter(Boolean),
-              )
-            } else {
-              return false
-            }
-          }) */
-
           const isTouched = fieldMetaValues.some((field) => field?.isTouched)
 
           const isDirty = fieldMetaValues.some((field) => field?.isDirty)
