@@ -420,7 +420,6 @@ export class FormApi<
 
         if (fieldErrors) {
           for (const [field, fieldError] of Object.entries(fieldErrors)) {
-            // TODO: this is not that elegant... Rewrite it sending it to review.
             const oldErrorMap =
               fieldsErrorMap[field as DeepKeys<TFormData>] || {}
             const newErrorMap = {
@@ -435,7 +434,7 @@ export class FormApi<
                 ...prev,
                 errorMap: {
                   ...prev.errorMap,
-                  [getErrorMapKey(validateObj.cause)]: fieldError,
+                  [errorMapKey]: fieldError,
                 },
               }))
             }
@@ -451,7 +450,7 @@ export class FormApi<
             },
           }))
         }
-        // TODO: check if it's correct
+
         if (formError || fieldErrors) {
           hasErrored = true
         }
