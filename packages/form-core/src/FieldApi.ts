@@ -539,7 +539,6 @@ export class FieldApi<
         const errorMapKey = getErrorMapKey(validateObj.cause)
 
         const error =
-          //TODO: reword this part
           /*
           If `validateObj.validate` is `undefined`, the field does not have a
           validator for this event, but there still could be an error that
@@ -567,19 +566,15 @@ export class FieldApi<
             },
           }))
         }
-        // TODO: The field has errored
         if (error || errorFromForm[errorMapKey]) {
           hasErrored = true
         }
       }
 
       for (const validateObj of validates) {
-        // TODO: remove errors set from form if needed
-        // if (!validateObj.validate) continue
         validateFieldFn(this, validateObj)
       }
       for (const fieldValitateObj of linkedFieldValidates) {
-        // TODO: remove errors set from form if needed
         if (!fieldValitateObj.validate) continue
         validateFieldFn(fieldValitateObj.field, fieldValitateObj)
       }
@@ -691,7 +686,6 @@ export class FieldApi<
             rawError = e as ValidationError
           }
           const error = normalizeError(rawError)
-          // clean up field errors
           const fieldErrorFromForm =
             asyncFormValidationResutts[this.name]?.[errorMapKey]
           const fieldError = error || fieldErrorFromForm
