@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { queryByTestId, render, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, waitFor } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { createFormFactory, useForm } from '../index'
 import { sleep } from './utils'
 
@@ -363,9 +363,6 @@ describe('useForm', () => {
   })
 
   it("should set field errors from the field's validators", async () => {
-    const onChangeError = 'Please enter a different value (onChangeError)'
-    const onBlurError = 'Please enter a different value (onBlurError)'
-
     function Comp() {
       const form = useForm({
         defaultValues: {
@@ -377,13 +374,14 @@ describe('useForm', () => {
               return {
                 form: 'Something went wrong',
                 fields: {
-                  firstName: onChangeError,
+                  firstName: 'Please enter a different value (onChangeError)',
                 },
               }
             return undefined
           },
           onBlur: ({ value }) => {
-            if (value.firstName === 'other') return onBlurError
+            if (value.firstName === 'other')
+              return 'Please enter a different value (onBlurError)'
             return undefined
           },
         },
@@ -404,23 +402,35 @@ describe('useForm', () => {
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
-                <p data-testid={'form-onchange'}>{errors.onChange}</p>
-                <p data-testid={'form-onblur'}>{errors.onBlur}</p>
+                <p data-testid={'field-onchange'}>
+                  {field.state.meta.errorMap.onChange}
+                </p>
               </div>
             )}
           />
+          <p data-testid={'form-onchange'}>{errors.onChange}</p>
+          <p data-testid={'form-onblur'}>{errors.onBlur}</p>
         </>
       )
     }
     const { getByTestId } = render(<Comp />)
+
     expect(getByTestId('form-onchange')).toHaveTextContent('')
+
     const input = getByTestId('fieldinput')
+
     await user.type(input, 'other')
     expect(getByTestId('form-onchange')).toHaveTextContent(
       'Something went wrong',
     )
+    expect(getByTestId('field-onchange')).toHaveTextContent(
+      'Please enter a different value (onChangeError)',
+    )
+
     await user.click(document.body)
-    expect(getByTestId('form-onblur')).toHaveTextContent(onBlurError)
+    expect(getByTestId('form-onblur')).toHaveTextContent(
+      'Please enter a different value (onBlurError)',
+    )
   })
 
   it('should validate async on change', async () => {
@@ -516,26 +526,26 @@ describe('useForm', () => {
             children={(field) => (
               <div>
                 <input
-                  data-testid="first-name-input"
+                  data-testid="fieldinput"
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
-                <p data-testid="first-name-error">
+                <p data-testid="field-error">
                   {field.state.meta.errorMap.onChange}
                 </p>
-                <p data-testid="form-error">{errors.onChange}</p>
               </div>
             )}
           />
+          <p data-testid="form-error">{errors.onChange}</p>
         </>
       )
     }
 
     const { getByTestId } = render(<Comp />)
-    const input = getByTestId('first-name-input')
-    const firstNameErrorElement = getByTestId('first-name-error')
+    const input = getByTestId('fieldinput')
+    const firstNameErrorElement = getByTestId('field-error')
     const formErrorElement = getByTestId('form-error')
 
     expect(firstNameErrorElement).toBeEmptyDOMElement()
@@ -679,8 +689,6 @@ describe('useForm', () => {
       firstName: string
       lastName: string
     }
-    const error = 'Please enter a different value'
-    const formErrorMessage = 'Something went wrong'
 
     const formFactory = createFormFactory<Person>()
 
@@ -694,8 +702,8 @@ describe('useForm', () => {
           onChange: ({ value }) => {
             if (value.firstName === 'Tom') {
               return {
-                form: formErrorMessage,
-                fields: { firstName: error },
+                form: 'Something went wrong',
+                fields: { firstName: 'Please enter a different value' },
               }
             }
             return null
@@ -719,26 +727,33 @@ describe('useForm', () => {
                   onChange={(e) => field.handleChange(e.target.value)}
                 />
 
-                <p data-testid="fielderror">
+                <p data-testid="field-error">
                   {field.state.meta.touchedErrors.join('')}
                 </p>
               </>
             )}
           />
-          <p data-testid="formerror">{onChangeError}</p>
+          <p data-testid="form-error">{onChangeError}</p>
         </>
       )
     }
 
     const { getByTestId, queryByText } = render(<Comp />)
     const input = getByTestId('fieldinput')
-    const fieldError = getByTestId('fielderror')
-    const formError = getByTestId('formerror')
-    expect(queryByText(error)).not.toBeInTheDocument()
-    expect(queryByText(formErrorMessage)).not.toBeInTheDocument()
+    const fieldError = getByTestId('field-error')
+    const formError = getByTestId('form-error')
+
+    expect(
+      queryByText('Please enter a different value'),
+    ).not.toBeInTheDocument()
+    expect(queryByText('Something went wrong')).not.toBeInTheDocument()
 
     await user.type(input, 'Tom')
-    await waitFor(() => expect(fieldError.textContent).toBe(error))
-    await waitFor(() => expect(formError.textContent).toBe(formErrorMessage))
+    await waitFor(() =>
+      expect(fieldError.textContent).toBe('Please enter a different value'),
+    )
+    await waitFor(() =>
+      expect(formError.textContent).toBe('Something went wrong'),
+    )
   })
 })
