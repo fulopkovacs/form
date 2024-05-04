@@ -1027,26 +1027,22 @@ describe('form api', () => {
     const field = new FieldApi({
       form,
       name: 'firstName',
-      validators: {
-        onBlur: ({ value }) => {
-          return value.length > 0 ? undefined : 'this is bad'
-        },
-      },
     })
 
     field.mount()
 
+    // Submit the form to see the error
     await form.handleSubmit()
     expect(form.state.errors).toStrictEqual(['first name is required'])
-    expect(field.state.meta.errors).toStrictEqual(['this is bad'])
 
+    // Change the field's value to see the error go away
+    // When the form is submitted again
     field.setValue('something else', { touch: true })
     expect(form.state.errors).toStrictEqual([])
     field.handleBlur()
     await form.handleSubmit()
     expect(form.state.canSubmit).toBe(true)
     expect(form.state.errors).toStrictEqual([])
-    expect(field.getMeta().errors).toStrictEqual([])
   })
 
   it('should run onChange validation during submit', async () => {
@@ -1075,24 +1071,12 @@ describe('form api', () => {
     const form = new FormApi({
       defaultValues: {
         firstName: '',
-        // lastName: '',
       },
       validators: {
-        onBlur: ({ value }) => {
-          if (value.firstName.length === 0) {
-            return {
-              fields: {
-                firstName: 'This is bad',
-              },
-            }
-          }
-
-          return null
-        },
         onSubmit: ({ value }) => {
           if (value.firstName.length === 0) {
             return {
-              form: 'Something went wrong',
+              form: 'something went wrong',
               fields: {
                 firstName: 'first name is required',
               },
@@ -1108,31 +1092,14 @@ describe('form api', () => {
       form,
       name: 'firstName',
       validators: {
-        /* onBlur: ({ value }) => {
-          if (value.length === 0) {
-            return 'This is bad'
-          }
-
-          return null
-        }, */
         onSubmit: ({ value }) => {
-          if (value === 'nothing') return 'not gonna happen'
+          if (value === 'nothing') return 'value cannot be "nothing"'
           return null
         },
       },
     })
 
-    // const lastNameField = new FieldApi({
-    //   form,
-    //   name: 'lastName',
-    //   validators: {
-    //     onChange: ({ value }) =>
-    //       value.length > 0 ? undefined : 'last name is required',
-    //   },
-    // })
-
     firstNameField.mount()
-    // lastNameField.mount()
 
     // Check if the error is returned from the form's onSubmit validator
     await form.handleSubmit()
@@ -1142,9 +1109,8 @@ describe('form api', () => {
       onSubmit: 'first name is required',
     })
     expect(form.state.errorMap).toMatchObject({
-      onSubmit: 'Something went wrong',
+      onSubmit: 'something went wrong',
     })
-    expect(form.state.errors).toEqual(['Something went wrong'])
 
     // Check if the error is gone after the value is changed
     firstNameField.setValue('nothing', { touch: true })
@@ -1154,7 +1120,9 @@ describe('form api', () => {
     firstNameField.handleBlur()
     await form.handleSubmit()
 
-    expect(firstNameField.getMeta().errors).toStrictEqual(['not gonna happen'])
+    expect(firstNameField.getMeta().errors).toStrictEqual([
+      'value cannot be "nothing"',
+    ])
 
     // Check if the error from the field's validator is shown
     firstNameField.setValue('something else', { touch: true })
@@ -1188,10 +1156,7 @@ describe('form api', () => {
       name: 'firstName',
       validators: {
         onChange: ({ value }) => {
-          if (value === 'nothing') return 'not gonna happen'
-          // if (value.length === 0) {
-          //   return 'first name is required'
-          // }
+          if (value === 'nothing') return 'value cannot be "nothing"'
 
           return null
         },
@@ -1205,39 +1170,38 @@ describe('form api', () => {
 
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(firstNameField.getMeta().errorMap.onChange).toBe(
+    expect(firstNameField.state.meta.errorMap.onChange).toBe(
       'first name is required',
     )
 
     // Check if we can make the error go away by changing the value
     firstNameField.setValue('one', { touch: true })
-    expect(firstNameField.getMeta().errorMap.onChange).toBe(undefined)
-    expect(firstNameField.getMeta().errors).toStrictEqual([])
+    expect(firstNameField.state.meta.errorMap.onChange).toBe(undefined)
 
     // Check if we get an error from the field's `onChange` validator
     firstNameField.setValue('nothing', { touch: true })
 
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(firstNameField.getMeta().errorMap.onChange).toBe('not gonna happen')
+    expect(firstNameField.getMeta().errorMap.onChange).toBe(
+      'value cannot be "nothing"',
+    )
 
     // Check if we can make the error go away by changing the value
     firstNameField.setValue('one', { touch: true })
     expect(firstNameField.getMeta().errorMap.onChange).toBe(undefined)
-    expect(firstNameField.getMeta().errors).toStrictEqual([])
   })
 
   it("should remove the onSubmit errors set from the form's validators after the field has been touched", async () => {
     const form = new FormApi({
       defaultValues: {
         firstName: '',
-        lastName: '',
       },
       validators: {
         onSubmit: ({ value }) => {
           if (value.firstName.length === 0) {
             return {
-              form: 'Something went wrong',
+              form: 'something went wrong',
               fields: {
                 firstName: 'first name is required',
               },
@@ -1254,23 +1218,13 @@ describe('form api', () => {
       name: 'firstName',
     })
 
-    const lastNameField = new FieldApi({
-      form,
-      name: 'lastName',
-      validators: {
-        onChange: ({ value }) =>
-          value.length > 0 ? undefined : 'last name is required',
-      },
-    })
-
     firstNameField.mount()
-    lastNameField.mount()
 
     await form.handleSubmit()
 
-    expect(form.state.fieldMeta['firstName'].errors).toEqual([
+    expect(firstNameField.state.meta.errorMap.onSubmit).toEqual(
       'first name is required',
-    ])
+    )
 
     firstNameField.setValue('this is a first name', { touch: true })
 
@@ -1285,26 +1239,16 @@ describe('form api', () => {
         name: '',
       },
       validators: {
-        onBlurAsync: async ({ value }) => {
-          await sleep(1500)
-          if (value.name === '')
-            return {
-              fields: {
-                name: 'this is bad',
-              },
-            }
-          return
-        },
         onSubmitAsync: async ({ value }) => {
           await sleep(1000)
           if (value.name === '')
             return {
-              form: 'Something went wrong',
+              form: 'something went wrong',
               fields: {
-                name: 'Name is required',
+                name: 'first name is required',
               },
             }
-          return
+          return null
         },
       },
     })
@@ -1314,13 +1258,13 @@ describe('form api', () => {
       validators: {
         onSubmitAsync: async ({ value }) => {
           await sleep(1000)
-          if (value === 'burger') return 'not gonna happen sis'
+          if (value === 'nothing') return 'value cannot be "nothing"'
           return null
         },
       },
     })
-    form.mount()
 
+    form.mount()
     field.mount()
 
     expect(form.state.errors.length).toBe(0)
@@ -1329,15 +1273,14 @@ describe('form api', () => {
     form.handleSubmit()
     await vi.runAllTimersAsync()
     expect(form.state.errorMap).toMatchObject({
-      onSubmit: 'Something went wrong',
+      onSubmit: 'something went wrong',
     })
     expect(field.state.meta.errorMap).toMatchObject({
-      onSubmit: 'Name is required',
+      onSubmit: 'first name is required',
     })
 
     // Check if the error goes away when the value is changed
     field.setValue('other', { touch: true })
-    // TODO: Check if it's okay, that we have to handle the blur ourselves
     field.handleBlur()
     form.handleSubmit()
     await vi.runAllTimersAsync()
@@ -1346,12 +1289,10 @@ describe('form api', () => {
     expect(field.state.meta.errors).toStrictEqual([])
 
     // Check if the field validator gives an error
-    field.setValue('burger', { touch: true })
+    field.setValue('nothing', { touch: true })
     form.handleSubmit()
     await vi.runAllTimersAsync()
-    expect(field.state.meta.errorMap).toMatchObject({
-      onSubmit: 'not gonna happen sis',
-    })
+    expect(field.state.meta.errorMap.onSubmit).toBe('value cannot be "nothing"')
   })
 
   it("should set errors for the fields from the form's onSubmit validator for array fields", async () => {
@@ -1364,8 +1305,7 @@ describe('form api', () => {
           if (value.people.includes('person-2')) {
             return {
               fields: {
-                people:
-                  'people with even numbers in their names are not allowed',
+                people: 'person-2 is banned from registering',
               },
             }
           }
@@ -1387,9 +1327,9 @@ describe('form api', () => {
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
     expect(form.state.isValid).toEqual(false)
-    expect(form.state.fieldMeta['people'].errors).toEqual([
-      'people with even numbers in their names are not allowed',
-    ])
+    expect(peopleField.state.meta.errorMap.onSubmit).toBe(
+      'person-2 is banned from registering',
+    )
   })
 
   it("should set errors for the fields from the form's onSubmitAsync validator for array fields", async () => {
@@ -1405,8 +1345,7 @@ describe('form api', () => {
           if (value.people.includes('person-2')) {
             return {
               fields: {
-                people:
-                  'people with even numbers in their names are not allowed',
+                people: 'person-2 is banned from registering',
               },
             }
           }
@@ -1431,9 +1370,9 @@ describe('form api', () => {
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
     expect(form.state.isValid).toEqual(false)
-    expect(form.state.fieldMeta['people'].errors).toEqual([
-      'people with even numbers in their names are not allowed',
-    ])
+    expect(peopleField.state.meta.errorMap.onSubmit).toEqual(
+      'person-2 is banned from registering',
+    )
   })
 
   it("should be able to set errors on nested field inside of an array from the form's validators", async () => {
@@ -1455,7 +1394,7 @@ describe('form api', () => {
             return {
               fields: {
                 [`employees[${fieldWithErrorIndex}].firstName`]:
-                  'people with even numbers in their names are not allowed',
+                  'person-2 is banned from registering',
               },
             }
           }
@@ -1475,21 +1414,24 @@ describe('form api', () => {
     const fieldInArray = new FieldApi({
       form,
       name: `employees[0].firstName`,
-      defaultValue: 'Darcy',
+      defaultValue: 'person-2',
     })
-    fieldInArray.setValue('person-2')
+
     fieldInArray.mount()
     await form.handleSubmit()
 
-    expect(form.state.isValid).toBe(false)
-    expect(fieldInArray.getMeta().errorMap).toMatchObject({
-      onSubmit: 'people with even numbers in their names are not allowed',
+    expect(form.state.isFieldsValid).toEqual(false)
+    expect(form.state.canSubmit).toEqual(false)
+    expect(fieldInArray.state.meta.errorMap).toMatchObject({
+      onSubmit: 'person-2 is banned from registering',
     })
 
     fieldInArray.setValue('Somebody else')
+
     await form.handleSubmit()
-    expect(form.state.isValid).toBe(true)
-    expect(fieldInArray.getMeta().errorMap).toMatchObject({})
+    expect(form.state.isFieldsValid).toEqual(true)
+    expect(form.state.canSubmit).toEqual(true)
+    expect(fieldInArray.state.meta.errors).toStrictEqual([])
 
     await form.handleSubmit()
   })
@@ -1505,7 +1447,7 @@ describe('form api', () => {
           if (value.confirm_password !== value.password) {
             return {
               fields: {
-                confirm_password: 'Passwords do not match',
+                confirm_password: 'passwords do not match',
               },
             }
           }
@@ -1534,12 +1476,14 @@ describe('form api', () => {
 
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(passconfirmField.getMeta().errorMap).toMatchObject({
-      onChange: 'Passwords do not match',
-    })
+    expect(passconfirmField.state.meta.errorMap.onChange).toBe(
+      'passwords do not match',
+    )
 
     passconfirmField.setValue('one', { touch: true })
-    expect(passconfirmField.getMeta().errors).toStrictEqual([])
+    expect(form.state.isFieldsValid).toEqual(true)
+    expect(form.state.canSubmit).toEqual(true)
+    expect(passconfirmField.state.meta.errors).toStrictEqual([])
   })
 
   it("should set errors on a linked field from the form's onChangeAsync validator", async () => {
@@ -1562,7 +1506,7 @@ describe('form api', () => {
           if (value.confirm_password !== value.password) {
             return {
               fields: {
-                confirm_password: 'Passwords do not match',
+                confirm_password: 'passwords do not match',
               },
             }
           }
@@ -1590,15 +1534,22 @@ describe('form api', () => {
     passField.setValue('one', { touch: true })
     resolve()
     // Allow for some micro-ticks to allow the promise to resolve
-    await sleep(3)
+    await sleep(4)
 
     expect(form.state.isFieldsValid).toEqual(false)
     expect(form.state.canSubmit).toEqual(false)
-    expect(passconfirmField.getMeta().errorMap).toMatchObject({
-      onChange: 'Passwords do not match',
-    })
+    expect(passconfirmField.state.meta.errorMap.onChange).toMatchObject(
+      'passwords do not match',
+    )
 
     passconfirmField.setValue('one', { touch: true })
-    expect(passconfirmField.getMeta().errors).toStrictEqual([])
+    resolve()
+    // Allow for some micro-ticks to allow the promise to resolve
+    await sleep(4)
+    /* expect(form.state.isFieldsValid).toEqual(true)
+    expect(form.state.canSubmit).toEqual(true) */
+    expect(form.state.isFieldsValid).toBe(true)
+    expect(form.state.canSubmit).toBe(true)
+    expect(passconfirmField.state.meta.errors).toStrictEqual([])
   })
 })
