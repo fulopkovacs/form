@@ -224,7 +224,6 @@ describe('field api', () => {
     expect(field.getMeta().errorMap).toMatchObject({
       onChange: 'Please enter a different value',
     })
-
     field.setValue('nothing', { touch: true })
     expect(field.getMeta().errors.length).toBe(0)
   })
@@ -721,6 +720,7 @@ describe('field api', () => {
     await sleep(1)
     field.setValue('two', { touch: true })
     resolve()
+    // Allow for some micro-ticks to allow the promise to resolve
     await sleep(3)
     expect(fn).toHaveBeenCalledTimes(1)
   })

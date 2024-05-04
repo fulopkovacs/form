@@ -612,7 +612,7 @@ export class FieldApi<
     const validates = getAsyncValidatorArray(cause, this.options)
 
     // Get the field-specific error messages that are coming from the form's validator
-    const asyncFormValidationResutts = await formValidationResultPromise
+    const asyncFormValidationResults = await formValidationResultPromise
 
     const linkedFields = this.getLinkedFields(cause)
     const linkedFieldValidates = linkedFields.reduce(
@@ -687,7 +687,7 @@ export class FieldApi<
           }
           const error = normalizeError(rawError)
           const fieldErrorFromForm =
-            asyncFormValidationResutts[this.name]?.[errorMapKey]
+            asyncFormValidationResults[this.name]?.[errorMapKey]
           const fieldError = error || fieldErrorFromForm
           field.setMeta((prev) => {
             return {
