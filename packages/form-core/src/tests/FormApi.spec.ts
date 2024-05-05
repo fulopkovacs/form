@@ -1536,8 +1536,6 @@ describe('form api', () => {
     resolve()
     // Allow for some micro-ticks to allow the promise to resolve
     await sleep(4)
-    /* expect(form.state.isFieldsValid).toEqual(true)
-    expect(form.state.canSubmit).toEqual(true) */
     expect(form.state.isFieldsValid).toBe(true)
     expect(form.state.canSubmit).toBe(true)
     expect(passconfirmField.state.meta.errors).toStrictEqual([])
