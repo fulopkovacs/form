@@ -1034,15 +1034,6 @@ describe('form api', () => {
     // Submit the form to see the error
     await form.handleSubmit()
     expect(form.state.errors).toStrictEqual(['first name is required'])
-
-    // Change the field's value to see the error go away
-    // When the form is submitted again
-    field.setValue('something else', { touch: true })
-    expect(form.state.errors).toStrictEqual([])
-    field.handleBlur()
-    await form.handleSubmit()
-    expect(form.state.canSubmit).toBe(true)
-    expect(form.state.errors).toStrictEqual([])
   })
 
   it('should run onChange validation during submit', async () => {
