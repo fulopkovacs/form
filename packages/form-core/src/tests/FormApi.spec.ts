@@ -1031,7 +1031,6 @@ describe('form api', () => {
 
     field.mount()
 
-    // Submit the form to see the error
     await form.handleSubmit()
     expect(form.state.errors).toStrictEqual(['first name is required'])
   })
