@@ -62,6 +62,13 @@ export type FormValidator<TFormData, TType, TFn = unknown> = {
   ): Promise<FormValidationError<TFormData>>
 }
 
+type ValidationPromiseResult<TFormData> =
+  | {
+      fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>
+      errorMapKey: ValidationErrorMapKeys
+    }
+  | undefined
+
 export type FormAsyncValidateOrFn<
   TFormData,
   TFormValidator extends Validator<TFormData, unknown> | undefined = undefined,
@@ -488,17 +495,11 @@ export class FormApi<
       this.store.setState((prev) => ({ ...prev, isFormValidating: true }))
     }
 
-    type ValidationPromiseResult =
-      | {
-          fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>
-          errorMapKey: ValidationErrorMapKeys
-        }
-      | undefined
     /**
      * We have to use a for loop and generate our promises this way, otherwise it won't be sync
      * when there are no validators needed to be run
      */
-    const promises: Promise<ValidationPromiseResult>[] = []
+    const promises: Promise<ValidationPromiseResult<TFormData>>[] = []
 
     let fieldErrors:
       | Partial<Record<DeepKeys<TFormData>, ValidationError>>
@@ -517,13 +518,7 @@ export class FormApi<
       }
 
       promises.push(
-        new Promise<
-          | {
-              fieldErrors: Partial<Record<DeepKeys<TFormData>, ValidationError>>
-              errorMapKey: ValidationErrorMapKeys
-            }
-          | undefined
-        >(async (resolve) => {
+        new Promise<ValidationPromiseResult<TFormData>>(async (resolve) => {
           let rawError!: ValidationError | undefined
           try {
             rawError = await new Promise((rawResolve, rawReject) => {
@@ -586,7 +581,7 @@ export class FormApi<
       )
     }
 
-    let results: ValidationPromiseResult[] = []
+    let results: ValidationPromiseResult<TFormData>[] = []
 
     const fieldsErrorMap: FieldsErrorMapFromValidator<TFormData> = {}
     if (promises.length) {
